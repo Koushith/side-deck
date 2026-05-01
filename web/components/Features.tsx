@@ -43,7 +43,7 @@ export function Features() {
   return (
     <section id="features" className="px-6 py-24 bg-paper-2 border-y border-rule-soft">
       <div className="mx-auto max-w-6xl">
-        <div className="max-w-2xl mb-16">
+        <div className="max-w-2xl mb-16 md:pl-9">
           <div className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-accent-ink mb-4">
             Why Side
           </div>

@@ -2,7 +2,7 @@ export function Showcase() {
   return (
     <section id="preview" className="px-6 py-24">
       <div className="mx-auto max-w-6xl">
-        <div className="max-w-2xl mb-14">
+        <div className="max-w-2xl mb-14 md:pl-5">
           <div className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-accent-ink mb-4">
             Three views, one vault
           </div>
