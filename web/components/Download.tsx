@@ -1,6 +1,15 @@
 import { DOWNLOADS, RELEASES_URL } from '@/lib/links';
 
-const platforms = [
+interface Platform {
+  name: string;
+  arch: string;
+  suffix: string;
+  href?: string;
+  glyph: string;
+  comingSoon?: boolean;
+}
+
+const platforms: Platform[] = [
   {
     name: 'macOS',
     arch: 'Apple Silicon',
@@ -19,15 +28,15 @@ const platforms = [
     name: 'Windows',
     arch: '10 / 11 · x64',
     suffix: '.exe',
-    href: DOWNLOADS.windows,
     glyph: 'windows',
+    comingSoon: true,
   },
   {
     name: 'Linux',
     arch: 'AppImage · x64',
     suffix: '.AppImage',
-    href: DOWNLOADS.linux,
     glyph: 'linux',
+    comingSoon: true,
   },
 ];
 
@@ -44,36 +53,98 @@ export function Download() {
           </h2>
           <p className="font-serif text-[16px] leading-relaxed text-ink-2 max-w-xl mx-auto">
             All builds are unsigned for now — first launch on macOS may need a
-            right-click → Open. Updates ship as new GitHub releases.
+            right-click → Open. Windows and Linux are next on the roadmap.
           </p>
         </div>
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-px bg-rule rounded-[12px] overflow-hidden">
-          {platforms.map((p, i) => (
-            <a
-              key={i}
-              href={p.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group bg-paper-2 hover:bg-paper p-7 flex flex-col items-start transition-colors"
-            >
-              <PlatformGlyph name={p.glyph} />
-              <div className="mt-5 font-serif text-[20px] font-semibold tracking-tight text-ink">
-                {p.name}
-              </div>
-              <div className="font-mono text-[10.5px] uppercase tracking-[0.08em] text-ink-3 mt-1">
-                {p.arch}
-              </div>
-              <div className="mt-5 inline-flex items-center gap-1.5 text-[12.5px] text-ink-3 group-hover:text-accent-ink transition-colors">
-                <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <path d="M7 10l5 5 5-5" />
-                  <path d="M12 15V3" />
-                </svg>
-                Download {p.suffix}
-              </div>
-            </a>
-          ))}
+          {platforms.map((p, i) => {
+            const inner = (
+              <>
+                <div className="flex items-start justify-between w-full">
+                  <PlatformGlyph name={p.glyph} />
+                  {p.comingSoon && (
+                    <span className="font-mono text-[9.5px] uppercase tracking-[0.1em] px-1.5 py-[2px] rounded-[4px] border border-rule text-ink-3 bg-paper">
+                      Coming soon
+                    </span>
+                  )}
+                </div>
+                <div className="mt-5 font-serif text-[20px] font-semibold tracking-tight text-ink">
+                  {p.name}
+                </div>
+                <div className="font-mono text-[10.5px] uppercase tracking-[0.08em] text-ink-3 mt-1">
+                  {p.arch}
+                </div>
+                <div
+                  className={
+                    'mt-5 inline-flex items-center gap-1.5 text-[12.5px] transition-colors ' +
+                    (p.comingSoon
+                      ? 'text-ink-4'
+                      : 'text-ink-3 group-hover:text-accent-ink')
+                  }
+                >
+                  {p.comingSoon ? (
+                    <>
+                      <svg
+                        width={12}
+                        height={12}
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.7"
+                        strokeLinecap="round"
+                      >
+                        <circle cx="12" cy="12" r="9" />
+                        <path d="M12 7v5l3 2" />
+                      </svg>
+                      v0.2 — soon
+                    </>
+                  ) : (
+                    <>
+                      <svg
+                        width={12}
+                        height={12}
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.7"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <path d="M7 10l5 5 5-5" />
+                        <path d="M12 15V3" />
+                      </svg>
+                      Download {p.suffix}
+                    </>
+                  )}
+                </div>
+              </>
+            );
+
+            if (p.comingSoon) {
+              return (
+                <div
+                  key={i}
+                  className="bg-paper-2 p-7 flex flex-col items-start cursor-not-allowed opacity-70"
+                  aria-disabled="true"
+                >
+                  {inner}
+                </div>
+              );
+            }
+            return (
+              <a
+                key={i}
+                href={p.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group bg-paper-2 hover:bg-paper p-7 flex flex-col items-start transition-colors"
+              >
+                {inner}
+              </a>
+            );
+          })}
         </div>
 
         <div className="mt-10 text-center">
