@@ -10,9 +10,15 @@ import chokidar, { FSWatcher } from 'chokidar';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 process.env.APP_ROOT = path.join(__dirname, '..');
 
+// Brand the dev process. electron-builder handles this for packaged builds
+// (productName = "Side") but during `npm run dev` Electron defaults to its
+// generic name + atom icon. Set both before anything reads `getPath('userData')`.
+app.setName('Side');
+
 const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL'];
 const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist');
 const MAIN_DIST = path.join(process.env.APP_ROOT, 'dist-electron');
+const ICON_PATH = path.join(process.env.APP_ROOT, 'build', 'icon.png');
 
 const SETTINGS_PATH = path.join(app.getPath('userData'), 'settings.json');
 
@@ -40,9 +46,11 @@ function createWindow() {
     height: 900,
     minWidth: 900,
     minHeight: 600,
+    title: 'Side',
     backgroundColor: '#0f1115',
     titleBarStyle: 'hiddenInset',
     trafficLightPosition: { x: 14, y: 14 },
+    icon: existsSync(ICON_PATH) ? ICON_PATH : undefined,
     webPreferences: {
       preload: path.join(MAIN_DIST, 'preload.cjs'),
       contextIsolation: true,
@@ -73,6 +81,15 @@ protocol.registerSchemesAsPrivileged([
 ]);
 
 app.whenReady().then(() => {
+  // Replace the default Electron atom icon in the macOS dock with our brand mark.
+  if (process.platform === 'darwin' && app.dock && existsSync(ICON_PATH)) {
+    try {
+      app.dock.setIcon(ICON_PATH);
+    } catch (err) {
+      console.warn('Failed to set dock icon:', err);
+    }
+  }
+
   // Map vault://<rel-path> → <vaultPath>/<rel-path> on disk
   protocol.handle('vault', async (req) => {
     try {
