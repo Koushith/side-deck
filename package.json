@@ -66,6 +66,7 @@
     "appId": "com.koushith.side",
     "productName": "Side",
     "copyright": "Copyright © 2026 Side",
+    "artifactName": "Side-${version}-${os}-${arch}.${ext}",
     "directories": {
       "output": "release",
       "buildResources": "build"
@@ -97,7 +98,7 @@
     },
     "win": {
       "target": [
-        { "target": "nsis", "arch": ["x64"] },
+        { "target": "nsis", "arch": ["x64", "arm64"] },
         { "target": "portable", "arch": ["x64"] }
       ],
       "icon": "build/icon.ico"
@@ -106,12 +107,13 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "perMachine": false,
-      "shortcutName": "Side"
+      "shortcutName": "Side",
+      "artifactName": "Side-Setup-${version}-${arch}.${ext}"
     },
     "linux": {
       "target": [
-        { "target": "AppImage", "arch": ["x64"] },
-        { "target": "deb", "arch": ["x64"] }
+        { "target": "AppImage", "arch": ["x64", "arm64"] },
+        { "target": "deb", "arch": ["x64", "arm64"] }
       ],
       "category": "Utility",
       "icon": "build/icon.png"
