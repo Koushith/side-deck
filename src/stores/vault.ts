@@ -6,6 +6,7 @@ import type { VaultFile, FileTreeNode, ViewMode } from '@/types';
 
 interface VaultState {
   vaultPath: string | null;
+  recentVaults: string[];
   files: Map<string, VaultFile>; // keyed by rel
   folders: Set<string>; // explicitly tracked rel folders (so empty folders show)
   activeFile: string | null; // rel
@@ -17,6 +18,7 @@ interface VaultState {
 
   init: () => Promise<void>;
   pickVault: () => Promise<void>;
+  openVault: (path: string) => Promise<void>;
   closeVault: () => Promise<void>;
   reloadIndex: () => Promise<void>;
   openFile: (rel: string) => void;
@@ -64,6 +66,7 @@ async function indexFile(vaultPath: string, rel: string, mtime: number): Promise
 
 export const useVault = create<VaultState>((set, get) => ({
   vaultPath: null,
+  recentVaults: [],
   files: new Map(),
   folders: new Set(),
   activeFile: null,
@@ -74,7 +77,8 @@ export const useVault = create<VaultState>((set, get) => ({
   selectedTag: null,
 
   async init() {
-    const existing = await api.vault.get();
+    const [existing, recents] = await Promise.all([api.vault.get(), api.vault.getRecents()]);
+    set({ recentVaults: recents });
     if (existing) {
       set({ vaultPath: existing });
       await get().reloadIndex();
@@ -100,8 +104,15 @@ export const useVault = create<VaultState>((set, get) => ({
         set((s) => {
           const m = new Map(s.files);
           m.delete(rel);
-          return { files: m, activeFile: s.activeFile === rel ? null : s.activeFile };
+          const tabs = s.tabs.filter((t) => t !== rel);
+          return { files: m, tabs, activeFile: s.activeFile === rel ? (tabs[tabs.length - 1] ?? null) : s.activeFile };
         });
+      } else if (e.type === 'addDir') {
+        const rel = e.path.replace(vp, '').replace(/^[\\/]+/, '');
+        if (rel) set((s) => { const folders = new Set(s.folders); folders.add(rel); return { folders }; });
+      } else if (e.type === 'unlinkDir') {
+        const rel = e.path.replace(vp, '').replace(/^[\\/]+/, '');
+        set((s) => { const folders = new Set(s.folders); folders.delete(rel); return { folders }; });
       }
     });
   },
@@ -109,9 +120,20 @@ export const useVault = create<VaultState>((set, get) => ({
   async pickVault() {
     const picked = await api.vault.pick();
     if (!picked) return;
-    set({ vaultPath: picked, files: new Map(), activeFile: null });
+    const recents = await api.vault.getRecents();
+    set({ vaultPath: picked, recentVaults: recents, files: new Map(), activeFile: null, tabs: [] });
     await get().reloadIndex();
     await api.watch.start(picked);
+  },
+
+  async openVault(vaultPath) {
+    const confirmed = await api.vault.openRecent(vaultPath);
+    if (!confirmed) return;
+    if (get().vaultPath) await api.watch.stop();
+    const recents = await api.vault.getRecents();
+    set({ vaultPath: confirmed, recentVaults: recents, files: new Map(), activeFile: null, tabs: [] });
+    await get().reloadIndex();
+    await api.watch.start(confirmed);
   },
 
   async closeVault() {
@@ -219,7 +241,8 @@ export const useVault = create<VaultState>((set, get) => ({
     set((s) => {
       const m = new Map(s.files);
       m.set(rel, indexed);
-      return { files: m, activeFile: rel, view: 'editor' };
+      const tabs = s.tabs.includes(rel) ? s.tabs : [...s.tabs, rel];
+      return { files: m, activeFile: rel, view: 'editor', tabs };
     });
     return rel;
   },
@@ -409,7 +432,8 @@ export const useVault = create<VaultState>((set, get) => ({
     set((s) => {
       const m2 = new Map(s.files);
       m2.set(rel, indexed);
-      return { files: m2, activeFile: rel, view: 'editor' };
+      const tabs = s.tabs.includes(rel) ? s.tabs : [...s.tabs, rel];
+      return { files: m2, activeFile: rel, view: 'editor', tabs };
     });
   },
 
