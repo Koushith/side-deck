@@ -17,11 +17,39 @@ function readVar(name: string, fallback = '0 0 0'): string {
   return `rgb(${triple})`;
 }
 
-// Categorical palette for folders — soft pastels that read well on dark bg.
-const PALETTE = [
-  '#7c8cff', // accent
-  '#7cd4ff', // link
-  '#f0a868', // tag
+function readVarRgba(name: string, alpha: number, fallback = '0 0 0'): string {
+  const triple = getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+  const [r, g, b] = triple.split(/\s+/);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+/** Look at the actual `--c-bg` luminance, not the user-facing `mode`. Carbon's "light" mode
+ *  is intentionally a charcoal background, so we can't trust mode alone to pick a palette. */
+function isBgDark(): boolean {
+  const triple = getComputedStyle(document.documentElement).getPropertyValue('--c-bg').trim();
+  if (!triple) return false;
+  const [r, g, b] = triple.split(/\s+/).map(Number);
+  return (r * 0.299 + g * 0.587 + b * 0.114) < 128;
+}
+
+// Categorical palettes — saturated mid-darks for light themes, soft pastels for dark themes.
+const PALETTE_LIGHT = [
+  '#4f6cc9', // indigo
+  '#0e8aa8', // teal
+  '#c25d2a', // burnt orange
+  '#3a8c4a', // forest
+  '#b53a72', // rose
+  '#6845b3', // violet
+  '#a87211', // mustard
+  '#1a8c79', // deep mint
+  '#b73838', // crimson
+  '#52607a', // slate
+];
+
+const PALETTE_DARK = [
+  '#7c8cff',
+  '#7cd4ff',
+  '#f0a868',
   '#9ee493',
   '#ff9ec5',
   '#c8a8ff',
@@ -31,10 +59,17 @@ const PALETTE = [
   '#a8b3d1',
 ];
 
-function colorForFolder(folderKey: string): string {
-  let h = 0;
-  for (let i = 0; i < folderKey.length; i++) h = (h * 31 + folderKey.charCodeAt(i)) >>> 0;
-  return PALETTE[h % PALETTE.length];
+function buildFolderColors(folderKeys: string[], bgIsDark: boolean): Map<string, string> {
+  const palette = bgIsDark ? PALETTE_DARK : PALETTE_LIGHT;
+  // Sort so the assignment is deterministic across renders, with `/` (root) pinned first.
+  const sorted = [...new Set(folderKeys)].sort((a, b) => {
+    if (a === '/') return -1;
+    if (b === '/') return 1;
+    return a.localeCompare(b);
+  });
+  const out = new Map<string, string>();
+  sorted.forEach((key, i) => out.set(key, palette[i % palette.length]));
+  return out;
 }
 
 export function GraphView() {
@@ -61,6 +96,18 @@ export function GraphView() {
     return { nodeCount: filesArr.length, edgeCount: edges };
   }, [files]);
 
+  // Per-folder color map — deterministic, no hash collisions. Re-keyed on themeKey/themeMode
+  // so theme switches re-pick the appropriate palette via bg-luminance detection.
+  const folderColors = useMemo(() => {
+    const keys: string[] = [];
+    for (const f of files.values()) {
+      const top = f.rel.split('/')[0];
+      keys.push(f.rel.includes('/') ? top : '/');
+    }
+    return buildFolderColors(keys, isBgDark());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [files, themeMode, themeKey]);
+
   // Folder legend (top folders only)
   const folderLegend = useMemo(() => {
     const counts = new Map<string, number>();
@@ -72,8 +119,8 @@ export function GraphView() {
     return [...counts.entries()]
       .sort((a, b) => b[1] - a[1])
       .slice(0, 8)
-      .map(([key, count]) => ({ key, label: key === '/' ? 'root' : key, count, color: colorForFolder(key) }));
-  }, [files]);
+      .map(([key, count]) => ({ key, label: key === '/' ? 'root' : key, count, color: folderColors.get(key) ?? PALETTE_LIGHT[0] }));
+  }, [files, folderColors]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -107,8 +154,8 @@ export function GraphView() {
         label: f.title || f.name,
         x: Math.random(),
         y: Math.random(),
-        size: 4 + Math.min(d, 12) * 0.9,
-        color: colorForFolder(folderKey),
+        size: 5 + Math.min(d, 12) * 0.9,
+        color: folderColors.get(folderKey) ?? PALETTE_LIGHT[0],
         folderKey,
       });
     }
@@ -118,7 +165,8 @@ export function GraphView() {
       if (seen.has(k)) continue;
       seen.add(k);
       try {
-        graph.addEdge(a, b, { color: '#252a36', size: 0.8 });
+        // Don't set per-edge color — let the theme-aware defaultEdgeColor win.
+        graph.addEdge(a, b, { size: 1 });
       } catch {
         /* dup edge, ignore */
       }
@@ -143,10 +191,62 @@ export function GraphView() {
 
     // Read theme colors so labels/edges/fades stay legible on every palette + mode.
     const inkColor = readVar('--c-text');
-    const ruleColor = readVar('--c-border');
-    const fadeColor = readVar('--c-bg-hover');
     const accentColor = readVar('--c-accent');
-    const nodeFadeColor = readVar('--c-bg-hover');
+    const bgIsDark = isBgDark();
+    // Edges: on dark canvases pull --c-text (cream/white) at ~55% alpha so lines read clearly
+    // without dominating. On light canvases use the subtler --c-text-subtle since dark-on-cream
+    // is already high contrast and full alpha would feel harsh.
+    const edgeColor = bgIsDark ? readVarRgba('--c-text', 0.55) : readVar('--c-text-subtle');
+    const edgeFadeColor = bgIsDark ? readVarRgba('--c-text', 0.18) : readVarRgba('--c-text-subtle', 0.35);
+    // Faded node tone — keeps recessive nodes visible without being prominent.
+    const nodeFadeColor = bgIsDark ? readVarRgba('--c-text', 0.35) : readVar('--c-text-subtle');
+    // Label pill: invert against the canvas so labels POP. Dark canvas → light pill + dark
+    // text; light canvas → keep the subtle elevated-bg card style (dark-on-cream is already
+    // high contrast and full inversion would be too aggressive).
+    const labelBgColor = bgIsDark ? readVar('--c-text') : readVar('--c-bg-elevated');
+    const labelTextColor = bgIsDark ? readVar('--c-bg') : readVar('--c-text');
+    const labelBorderColor = readVar('--c-border');
+
+    function drawPillLabel(
+      context: CanvasRenderingContext2D,
+      label: string,
+      nodeX: number,
+      nodeY: number,
+      nodeSize: number,
+      fontSize: number,
+      fontFamily: string,
+      fontWeight: string | number,
+      withBorder: boolean,
+    ) {
+      context.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
+      const w = context.measureText(label).width;
+      const padX = 6;
+      const padY = 3;
+      const x = nodeX + nodeSize + 4;
+      const y = nodeY - fontSize / 2 - padY;
+      const h = fontSize + padY * 2;
+      const r = h / 2;
+      context.beginPath();
+      context.moveTo(x + r, y);
+      context.lineTo(x + w + padX * 2 - r, y);
+      context.quadraticCurveTo(x + w + padX * 2, y, x + w + padX * 2, y + r);
+      context.lineTo(x + w + padX * 2, y + h - r);
+      context.quadraticCurveTo(x + w + padX * 2, y + h, x + w + padX * 2 - r, y + h);
+      context.lineTo(x + r, y + h);
+      context.quadraticCurveTo(x, y + h, x, y + h - r);
+      context.lineTo(x, y + r);
+      context.quadraticCurveTo(x, y, x + r, y);
+      context.closePath();
+      context.fillStyle = labelBgColor;
+      context.fill();
+      if (withBorder) {
+        context.strokeStyle = labelBorderColor;
+        context.lineWidth = 1;
+        context.stroke();
+      }
+      context.fillStyle = labelTextColor;
+      context.fillText(label, x + padX, y + fontSize + padY - 3);
+    }
 
     const renderer = new Sigma(graph, containerRef.current, {
       renderEdgeLabels: false,
@@ -155,11 +255,40 @@ export function GraphView() {
       labelColor: { color: inkColor },
       labelSize: 12,
       labelWeight: '500',
-      labelDensity: 0.7,
-      labelGridCellSize: 80,
-      defaultEdgeColor: ruleColor,
+      labelDensity: 1,
+      labelGridCellSize: 90,
+      labelRenderedSizeThreshold: 0,
+      defaultEdgeColor: edgeColor,
       minCameraRatio: 0.1,
       maxCameraRatio: 10,
+      defaultDrawNodeLabel: (context, data, settings) => {
+        if (!data.label || typeof data.label !== 'string') return;
+        drawPillLabel(
+          context,
+          data.label,
+          data.x,
+          data.y,
+          data.size,
+          settings.labelSize,
+          settings.labelFont,
+          settings.labelWeight,
+          false,
+        );
+      },
+      defaultDrawNodeHover: (context, data, settings) => {
+        if (!data.label || typeof data.label !== 'string') return;
+        drawPillLabel(
+          context,
+          data.label,
+          data.x,
+          data.y,
+          data.size,
+          settings.labelSize,
+          settings.labelFont,
+          settings.labelWeight,
+          true,
+        );
+      },
     });
 
     sigmaRef.current = renderer;
@@ -183,8 +312,8 @@ export function GraphView() {
     renderer.setSetting('edgeReducer', (edge, data) => {
       if (!hovered) return data;
       const [s, t] = graph.extremities(edge);
-      if (s === hovered || t === hovered) return { ...data, color: accentColor, size: 1.3 };
-      return { ...data, color: fadeColor };
+      if (s === hovered || t === hovered) return { ...data, color: accentColor, size: 1.6 };
+      return { ...data, color: edgeFadeColor };
     });
 
     renderer.on('clickNode', ({ node }) => {
@@ -245,7 +374,7 @@ export function GraphView() {
       renderer.kill();
       sigmaRef.current = null;
     };
-  }, [files, activeFile, localMode, openFile, setView, themeKey, themeMode]);
+  }, [files, folderColors, activeFile, localMode, openFile, setView, themeKey, themeMode]);
 
   return (
     <div className="relative w-full h-full bg-bg">

@@ -117,6 +117,7 @@ export default function App() {
         <TitleBar
           onOpenPalette={() => setPaletteOpen(true)}
           onShowShortcuts={() => setShortcutsOpen(true)}
+          onShowWhatsNew={() => setWhatsNewOpen(true)}
           onGetEditorHtml={() => useEditorRef.getState().editor?.getHTML() ?? null}
         />
       )}

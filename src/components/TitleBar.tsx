@@ -13,6 +13,7 @@ import {
   Focus,
   Keyboard,
   Pin,
+  Megaphone,
 } from 'lucide-react';
 import { useVault } from '@/stores/vault';
 import { useTheme } from '@/stores/theme';
@@ -24,10 +25,11 @@ import { exportHtml, exportMarkdown, exportPdf } from '@/lib/export';
 interface Props {
   onOpenPalette: () => void;
   onShowShortcuts?: () => void;
+  onShowWhatsNew?: () => void;
   onGetEditorHtml?: () => string | null;
 }
 
-export function TitleBar({ onOpenPalette, onShowShortcuts, onGetEditorHtml }: Props) {
+export function TitleBar({ onOpenPalette, onShowShortcuts, onShowWhatsNew, onGetEditorHtml }: Props) {
   const view = useVault((s) => s.view);
   const setView = useVault((s) => s.setView);
   const vaultPath = useVault((s) => s.vaultPath);
@@ -98,6 +100,12 @@ export function TitleBar({ onOpenPalette, onShowShortcuts, onGetEditorHtml }: Pr
           title="Focus mode (⌘.)"
         >
           <Focus size={14} />
+        </IconBtn>
+        <IconBtn
+          onClick={onShowWhatsNew}
+          title="What's new"
+        >
+          <Megaphone size={14} />
         </IconBtn>
         <IconBtn
           onClick={onShowShortcuts}
