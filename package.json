@@ -92,13 +92,14 @@
       "icon": "build/icon.icns"
     },
     "dmg": {
-      "title": "SideNotes ${version}",
+      "title": "SideNotes ${version} ${arch}",
       "icon": "build/icon.icns",
       "window": { "width": 540, "height": 380 },
       "contents": [
         { "x": 140, "y": 200, "type": "file" },
         { "x": 400, "y": 200, "type": "link", "path": "/Applications" }
-      ]
+      ],
+      "writeUpdateInfo": false
     },
     "win": {
       "target": [
