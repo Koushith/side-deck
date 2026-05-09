@@ -4,35 +4,49 @@ interface UiState {
   focusMode: boolean;
   setFocusMode: (v: boolean) => void;
   toggleFocus: () => void;
+  rawMode: boolean;
+  setRawMode: (v: boolean) => void;
+  toggleRawMode: () => void;
 }
 
-const KEY = 'second-brain.focusMode';
+const FOCUS_KEY = 'second-brain.focusMode';
+const RAW_KEY = 'second-brain.rawMode';
 
-function readInitial(): boolean {
+function readBool(key: string): boolean {
   try {
-    return localStorage.getItem(KEY) === '1';
+    return localStorage.getItem(key) === '1';
   } catch {
     return false;
   }
 }
 
-function persist(v: boolean) {
+function persistBool(key: string, v: boolean) {
   try {
-    localStorage.setItem(KEY, v ? '1' : '0');
+    localStorage.setItem(key, v ? '1' : '0');
   } catch {
     /* ignore */
   }
 }
 
 export const useUi = create<UiState>((set, get) => ({
-  focusMode: readInitial(),
+  focusMode: readBool(FOCUS_KEY),
   setFocusMode: (focusMode) => {
-    persist(focusMode);
+    persistBool(FOCUS_KEY, focusMode);
     set({ focusMode });
   },
   toggleFocus: () => {
     const next = !get().focusMode;
-    persist(next);
+    persistBool(FOCUS_KEY, next);
     set({ focusMode: next });
+  },
+  rawMode: readBool(RAW_KEY),
+  setRawMode: (rawMode) => {
+    persistBool(RAW_KEY, rawMode);
+    set({ rawMode });
+  },
+  toggleRawMode: () => {
+    const next = !get().rawMode;
+    persistBool(RAW_KEY, next);
+    set({ rawMode: next });
   },
 }));

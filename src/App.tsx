@@ -7,6 +7,7 @@ import { Sidebar } from '@/components/Sidebar';
 import { TitleBar } from '@/components/TitleBar';
 import { TabBar } from '@/components/TabBar';
 import { Editor } from '@/components/Editor';
+import { RawEditor } from '@/components/RawEditor';
 import { CanvasView } from '@/components/CanvasView';
 import { GraphView } from '@/components/GraphView';
 import { AllNotesView } from '@/components/AllNotesView';
@@ -32,6 +33,7 @@ export default function App() {
   const focusMode = useUi((s) => s.focusMode);
   const toggleFocus = useUi((s) => s.toggleFocus);
   const setFocusMode = useUi((s) => s.setFocusMode);
+  const rawMode = useUi((s) => s.rawMode);
 
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -146,6 +148,8 @@ export default function App() {
               ) : activeFile ? (
                 activeFile.endsWith('.canvas') ? (
                   <CanvasView key={activeFile} rel={activeFile} vaultPath={vaultPath} />
+                ) : rawMode ? (
+                  <RawEditor key={activeFile} rel={activeFile} vaultPath={vaultPath} />
                 ) : (
                   <Editor key={activeFile} rel={activeFile} vaultPath={vaultPath} />
                 )

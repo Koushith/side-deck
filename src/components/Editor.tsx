@@ -23,6 +23,7 @@ import { WikilinkAutocomplete } from './WikilinkAutocomplete';
 import { MentionSuggest, MentionSuggestState } from './extensions/MentionSuggest';
 import { MentionAutocomplete } from './MentionAutocomplete';
 import { EditorBubbleMenu } from './EditorBubbleMenu';
+import { TableBubbleMenu } from './TableBubbleMenu';
 import { DailyNoteHeader, isDailyNote } from './DailyNoteHeader';
 import { resolveWikilink } from '@/lib/markdown';
 import { api } from '@/lib/api';
@@ -357,6 +358,7 @@ export function Editor({ rel, vaultPath }: EditorProps) {
           )}
           <EditorContent editor={editor} />
           {editor && <EditorBubbleMenu editor={editor} />}
+          {editor && <TableBubbleMenu editor={editor} />}
         </div>
       </div>
 
@@ -442,7 +444,7 @@ function buildSlashCommands(insertImage: (file: File) => Promise<void>): SlashCm
     { title: 'Todo list', hint: 'Checkboxes you can tick off', keywords: ['todo', 'check', 'task'], icon: i(CheckSquare), run: (e) => e.chain().focus().toggleTaskList().run() },
     { title: 'Quote', hint: 'Set off a passage', keywords: ['quote', 'blockquote'], icon: i(Quote), run: (e) => e.chain().focus().toggleBlockquote().run() },
     { title: 'Code block', hint: 'For code snippets', keywords: ['code', 'pre'], icon: i(Code), run: (e) => e.chain().focus().toggleCodeBlock().run() },
-    { title: 'Table', hint: '3×3 grid, resizable', keywords: ['table', 'grid'], icon: i(TableIcon), run: (e) => e.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run() },
+    { title: 'Table', hint: 'Add/remove rows & columns from the toolbar', keywords: ['table', 'grid'], icon: i(TableIcon), run: (e) => e.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run() },
     { title: 'Image', hint: 'From your computer', keywords: ['image', 'picture', 'photo'], icon: i(ImageIcon), run: () => {
       const input = document.createElement('input');
       input.type = 'file';
