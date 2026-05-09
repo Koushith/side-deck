@@ -24,6 +24,7 @@ import { MentionSuggest, MentionSuggestState } from './extensions/MentionSuggest
 import { MentionAutocomplete } from './MentionAutocomplete';
 import { EditorBubbleMenu } from './EditorBubbleMenu';
 import { TableBubbleMenu } from './TableBubbleMenu';
+import { ViewModeTabs } from './ViewModeTabs';
 import { DailyNoteHeader, isDailyNote } from './DailyNoteHeader';
 import { resolveWikilink } from '@/lib/markdown';
 import { api } from '@/lib/api';
@@ -311,6 +312,9 @@ export function Editor({ rel, vaultPath }: EditorProps) {
       {!dailyMode && (
         <div className="px-16 pt-14 pb-2">
           <div className="max-w-3xl mx-auto">
+            <div className="flex justify-end mb-3">
+              <ViewModeTabs />
+            </div>
             <h1 className="font-serif text-[40px] font-semibold tracking-tight leading-[1.1] text-text">
               {title}
             </h1>
@@ -354,7 +358,12 @@ export function Editor({ rel, vaultPath }: EditorProps) {
       <div className="flex-1 overflow-y-auto px-16">
         <div className="max-w-3xl mx-auto">
           {dailyMode && (
-            <DailyNoteHeader rel={rel} title={dailyTitle} onTitleChange={setDailyTitle} />
+            <>
+              <div className="flex justify-end pt-6">
+                <ViewModeTabs />
+              </div>
+              <DailyNoteHeader rel={rel} title={dailyTitle} onTitleChange={setDailyTitle} />
+            </>
           )}
           <EditorContent editor={editor} />
           {editor && <EditorBubbleMenu editor={editor} />}

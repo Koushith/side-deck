@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useVault } from '@/stores/vault';
 import { api } from '@/lib/api';
 import { joinPath, basenameNoExt } from '@/lib/utils';
+import { ViewModeTabs } from './ViewModeTabs';
 
 interface Props {
   rel: string;
@@ -59,13 +60,15 @@ export function RawEditor({ rel, vaultPath }: Props) {
     <div className="flex flex-col h-full overflow-hidden">
       <div className="px-16 pt-14 pb-2">
         <div className="max-w-3xl mx-auto">
-          <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-text-subtle mb-2">
-            <span className="px-1.5 py-[1px] rounded bg-accent/15 text-accent font-mono">RAW</span>
-            <span>Markdown source</span>
+          <div className="flex justify-end mb-3">
+            <ViewModeTabs />
           </div>
           <h1 className="font-serif text-[40px] font-semibold tracking-tight leading-[1.1] text-text">
             {title}
           </h1>
+          <div className="text-[12.5px] text-text-muted mt-2.5">
+            Editing raw markdown source
+          </div>
         </div>
       </div>
       <div className="flex-1 overflow-y-auto px-16 pb-10">

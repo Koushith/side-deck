@@ -14,7 +14,6 @@ import {
   Keyboard,
   Pin,
   Megaphone,
-  Code2,
 } from 'lucide-react';
 import { useVault } from '@/stores/vault';
 import { useTheme } from '@/stores/theme';
@@ -43,8 +42,6 @@ export function TitleBar({ onOpenPalette, onShowShortcuts, onShowWhatsNew, onGet
 
   const mode = useTheme((s) => s.mode);
   const toggleFocus = useUi((s) => s.toggleFocus);
-  const rawMode = useUi((s) => s.rawMode);
-  const toggleRawMode = useUi((s) => s.toggleRawMode);
 
   const [moreOpen, setMoreOpen] = useState(false);
   const [themeOpen, setThemeOpen] = useState(false);
@@ -104,19 +101,6 @@ export function TitleBar({ onOpenPalette, onShowShortcuts, onShowWhatsNew, onGet
         >
           <Focus size={14} />
         </IconBtn>
-        <button
-          onClick={toggleRawMode}
-          disabled={!activeFile || activeFile.endsWith('.canvas')}
-          title={rawMode ? 'Switch to rich editor' : 'Switch to raw markdown'}
-          className={cn(
-            'press w-7 h-7 grid place-items-center rounded-md disabled:opacity-40 disabled:cursor-not-allowed',
-            rawMode
-              ? 'text-accent bg-accent/15 hover:bg-accent/20'
-              : 'text-text-muted hover:text-text hover:bg-bg-elevated'
-          )}
-        >
-          <Code2 size={14} />
-        </button>
         <IconBtn
           onClick={onShowWhatsNew}
           title="What's New"

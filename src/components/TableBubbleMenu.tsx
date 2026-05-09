@@ -4,8 +4,7 @@ import {
   ArrowDownToLine,
   ArrowLeftToLine,
   ArrowRightToLine,
-  Rows3,
-  Columns3,
+  Minus,
   Heading,
   Trash2,
 } from 'lucide-react';
@@ -44,8 +43,9 @@ export function TableBubbleMenu({ editor }: Props) {
       <Btn
         title="Delete row"
         onClick={() => editor.chain().focus().deleteRow().run()}
+        danger
       >
-        <Rows3 size={14} />
+        <Minus size={14} />
       </Btn>
       <Sep />
       <Btn
@@ -63,8 +63,9 @@ export function TableBubbleMenu({ editor }: Props) {
       <Btn
         title="Delete column"
         onClick={() => editor.chain().focus().deleteColumn().run()}
+        danger
       >
-        <Columns3 size={14} />
+        <Minus size={14} className="rotate-90" />
       </Btn>
       <Sep />
       <Btn
