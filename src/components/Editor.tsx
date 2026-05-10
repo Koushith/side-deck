@@ -15,7 +15,6 @@ import { Markdown } from 'tiptap-markdown';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useVault } from '@/stores/vault';
 import { useEditorRef } from '@/stores/editorRef';
-import { useUi } from '@/stores/ui';
 import { Wikilink, preprocessWikilinks } from './extensions/Wikilink';
 import { Tag, preprocessTags } from './extensions/Tag';
 import { SlashMenu, SlashMenuState, clearSlashRange } from './extensions/SlashMenu';
@@ -76,7 +75,6 @@ export function Editor({ rel, vaultPath }: EditorProps) {
   currentRelRef.current = rel;
 
   const dailyMode = isDailyNote(rel);
-  const devMode = useUi((s) => s.devMode);
   const [dailyTitle, setDailyTitle] = useState('');
   const dailyTitleRef = useRef('');
   dailyTitleRef.current = dailyTitle;
@@ -314,11 +312,9 @@ export function Editor({ rel, vaultPath }: EditorProps) {
       {!dailyMode && (
         <div className="px-16 pt-14 pb-2">
           <div className="max-w-3xl mx-auto">
-            {devMode && (
-              <div className="flex justify-end mb-3">
-                <ViewModeTabs />
-              </div>
-            )}
+            <div className="flex justify-end mb-3">
+              <ViewModeTabs />
+            </div>
             <h1 className="font-serif text-[40px] font-semibold tracking-tight leading-[1.1] text-text">
               {title}
             </h1>
@@ -363,11 +359,9 @@ export function Editor({ rel, vaultPath }: EditorProps) {
         <div className="max-w-3xl mx-auto">
           {dailyMode && (
             <>
-              {devMode && (
-                <div className="flex justify-end pt-6">
-                  <ViewModeTabs />
-                </div>
-              )}
+              <div className="flex justify-end pt-6">
+                <ViewModeTabs />
+              </div>
               <DailyNoteHeader rel={rel} title={dailyTitle} onTitleChange={setDailyTitle} />
             </>
           )}

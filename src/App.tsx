@@ -34,7 +34,6 @@ export default function App() {
   const toggleFocus = useUi((s) => s.toggleFocus);
   const setFocusMode = useUi((s) => s.setFocusMode);
   const rawMode = useUi((s) => s.rawMode);
-  const devMode = useUi((s) => s.devMode);
 
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -149,7 +148,7 @@ export default function App() {
               ) : activeFile ? (
                 activeFile.endsWith('.canvas') ? (
                   <CanvasView key={activeFile} rel={activeFile} vaultPath={vaultPath} />
-                ) : devMode && rawMode ? (
+                ) : rawMode ? (
                   <RawEditor key={activeFile} rel={activeFile} vaultPath={vaultPath} />
                 ) : (
                   <Editor key={activeFile} rel={activeFile} vaultPath={vaultPath} />
