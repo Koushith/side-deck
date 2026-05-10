@@ -550,6 +550,26 @@ function NoteCardSearch({ onPick }: { onPick: (rel: string) => void }) {
   );
 }
 
+function CardResizer({
+  minWidth,
+  minHeight,
+  selected,
+}: {
+  minWidth: number;
+  minHeight: number;
+  selected?: boolean;
+}) {
+  return (
+    <NodeResizer
+      isVisible={!!selected}
+      minWidth={minWidth}
+      minHeight={minHeight}
+      lineClassName="canvas-resize-line"
+      handleClassName="canvas-resize-handle"
+    />
+  );
+}
+
 const STICKY_STYLES: Record<StickyColor, { bg: string; border: string; ink: string; tab: string }> = {
   yellow: {
     bg: 'bg-[#f5e7a8]',
@@ -670,26 +690,6 @@ function TextCard({
         className="flex-1 bg-transparent outline-none p-3 text-sm text-text resize-none placeholder:text-text-subtle nodrag"
       />
     </div>
-  );
-}
-
-function CardResizer({
-  minWidth,
-  minHeight,
-  selected,
-}: {
-  minWidth: number;
-  minHeight: number;
-  selected?: boolean;
-}) {
-  return (
-    <NodeResizer
-      isVisible={!!selected}
-      minWidth={minWidth}
-      minHeight={minHeight}
-      lineClassName="canvas-resize-line"
-      handleClassName="canvas-resize-handle"
-    />
   );
 }
 

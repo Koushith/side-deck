@@ -6,7 +6,7 @@ import forceAtlas2 from 'graphology-layout-forceatlas2';
 import { useVault } from '@/stores/vault';
 import { useTheme } from '@/stores/theme';
 import { resolveWikilink } from '@/lib/markdown';
-import { Maximize2, Compass, Globe } from 'lucide-react';
+import { Maximize2, Focus, Network } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /** Read a `--c-*` CSS variable (stored as "R G B" triples) and return an `rgb(...)` color
@@ -358,19 +358,27 @@ export function GraphView() {
     renderer.getMouseCaptor().on('mouseup', stopDrag);
     renderer.getMouseCaptor().on('mouseleave', stopDrag);
 
-    // Settle FA2 a few extra frames for smoothness
+    // Settle FA2 a few extra frames for smoothness. Track cancellation so the
+    // pending RAF doesn't refresh a renderer that's already been killed (which
+    // throws "could not find a suitable program for node type 'circle'!" under
+    // React 18 strict-mode double-mount and HMR).
     let frame = 0;
+    let cancelled = false;
+    let rafId: number | null = null;
     const tick = () => {
+      if (cancelled) return;
       if (!isDragging) {
         forceAtlas2.assign(graph, { iterations: 1, settings });
       }
       renderer.refresh({ skipIndexation: false });
       frame++;
-      if (frame < 80) requestAnimationFrame(tick);
+      if (frame < 80) rafId = requestAnimationFrame(tick);
     };
-    requestAnimationFrame(tick);
+    rafId = requestAnimationFrame(tick);
 
     return () => {
+      cancelled = true;
+      if (rafId !== null) cancelAnimationFrame(rafId);
       renderer.kill();
       sigmaRef.current = null;
     };
@@ -411,15 +419,20 @@ export function GraphView() {
           disabled={!activeFile}
           onClick={() => setLocalMode((v) => !v)}
           className={cn(
-            'p-2 rounded-md backdrop-blur border transition-colors',
+            'inline-flex items-center gap-1.5 rounded-md backdrop-blur border px-2.5 py-1.5 text-[12px] transition-colors',
             localMode
-              ? 'bg-accent/20 border-accent/50 text-accent'
+              ? 'bg-accent/15 border-accent/50 text-accent hover:bg-accent/20'
               : 'bg-bg-elevated/80 border-border text-text-muted hover:text-text hover:bg-bg-hover',
             !activeFile && 'opacity-40 cursor-not-allowed'
           )}
-          title={localMode ? 'Show full graph' : 'Show local graph (active note neighborhood)'}
+          title={
+            localMode
+              ? 'Show every note and how they connect'
+              : 'Hide everything except this note and its neighbors'
+          }
         >
-          {localMode ? <Compass size={14} /> : <Globe size={14} />}
+          {localMode ? <Network size={13} /> : <Focus size={13} />}
+          {localMode ? 'Show all notes' : 'Focus on this note'}
         </button>
         <button
           onClick={() => sigmaRef.current?.getCamera().animatedReset()}
