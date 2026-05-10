@@ -573,6 +573,7 @@ const STICKY_STYLES: Record<StickyColor, { bg: string; border: string; ink: stri
 
 function StickyCard({
   data,
+  selected,
   onChange,
   onColor,
   onRemove,
@@ -593,7 +594,7 @@ function StickyCard({
         styles.border
       )}
     >
-      <CardResizer minWidth={160} minHeight={100} />
+      <CardResizer minWidth={160} minHeight={100} selected={selected} />
       <CardHandles color="accent" />
       <div className={cn('flex items-center justify-between px-2.5 py-1 cursor-grab active:cursor-grabbing', styles.tab)}>
         <span className="text-[9.5px] uppercase tracking-[0.12em] font-medium">Sticky</span>
@@ -639,6 +640,7 @@ function StickyCard({
 
 function TextCard({
   data,
+  selected,
   onChange,
   onRemove,
 }: NodeProps & { onChange: (s: string) => void; onRemove: () => void }) {
@@ -646,7 +648,7 @@ function TextCard({
   useEffect(() => setText((data.text as string) ?? ''), [data.text]);
   return (
     <div className="anim-drop-in group w-full h-full flex flex-col rounded-xl bg-bg-elevated border border-border shadow-md hover:border-accent/50 transition-colors overflow-hidden">
-      <CardResizer minWidth={160} minHeight={80} />
+      <CardResizer minWidth={160} minHeight={80} selected={selected} />
       <CardHandles color="accent" />
       <div className="flex items-center justify-between px-3 py-1.5 border-b border-border bg-bg cursor-grab active:cursor-grabbing">
         <span className="text-[10px] uppercase tracking-wider text-text-subtle">Text</span>
@@ -671,13 +673,22 @@ function TextCard({
   );
 }
 
-function CardResizer({ minWidth, minHeight }: { minWidth: number; minHeight: number }) {
+function CardResizer({
+  minWidth,
+  minHeight,
+  selected,
+}: {
+  minWidth: number;
+  minHeight: number;
+  selected?: boolean;
+}) {
   return (
     <NodeResizer
+      isVisible={!!selected}
       minWidth={minWidth}
       minHeight={minHeight}
-      lineClassName="!border-accent/60"
-      handleClassName="!bg-accent !border !border-bg !w-2 !h-2 !rounded-sm"
+      lineClassName="canvas-resize-line"
+      handleClassName="canvas-resize-handle"
     />
   );
 }
@@ -702,7 +713,7 @@ function CardHandles({ color }: { color: 'accent' | 'link' }) {
   );
 }
 
-function FileCard({ data, onRemove }: NodeProps & { onRemove: () => void }) {
+function FileCard({ data, selected, onRemove }: NodeProps & { onRemove: () => void }) {
   const fileRel = data.file as string;
   const file = useVault((s) => s.files.get(fileRel));
   const openFile = useVault((s) => s.openFile);
@@ -734,7 +745,7 @@ function FileCard({ data, onRemove }: NodeProps & { onRemove: () => void }) {
 
   return (
     <div className="anim-drop-in group w-full h-full flex flex-col rounded-xl bg-bg-elevated border border-border shadow-md hover:border-link/60 transition-colors overflow-hidden">
-      <CardResizer minWidth={200} minHeight={100} />
+      <CardResizer minWidth={200} minHeight={100} selected={selected} />
       <CardHandles color="link" />
       {category && (
         <div className="px-3 pt-2.5 pb-1 flex items-center gap-1.5">

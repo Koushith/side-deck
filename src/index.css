@@ -361,7 +361,29 @@
   .react-flow__node.selected > div,
   .react-flow__node-textCard.selected > div,
   .react-flow__node-fileCard.selected > div {
-    box-shadow: 0 0 0 2px rgb(var(--c-accent)), 0 8px 30px rgb(0 0 0 / 0.3);
+    box-shadow: 0 0 0 1.5px rgb(var(--c-accent) / 0.7), 0 8px 30px rgb(0 0 0 / 0.18);
+  }
+  /* Custom NodeResizer styling — subtle, only on selection */
+  .canvas-resize-line {
+    border: 0 !important;
+  }
+  .canvas-resize-handle {
+    background: rgb(var(--c-bg)) !important;
+    border: 1.5px solid rgb(var(--c-accent)) !important;
+    width: 8px !important;
+    height: 8px !important;
+    border-radius: 9999px !important;
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.15);
+  }
+  /* Hide the four mid-edge handles — keep only the corners for a cleaner look.
+     react-flow assigns a single position class to mid-edge handles, but the
+     corners get two (e.g. .top.left). The :where + :not pattern below targets
+     handles that have exactly one of top/right/bottom/left. */
+  .react-flow__resize-control.handle.top:not(.left):not(.right),
+  .react-flow__resize-control.handle.bottom:not(.left):not(.right),
+  .react-flow__resize-control.handle.left:not(.top):not(.bottom),
+  .react-flow__resize-control.handle.right:not(.top):not(.bottom) {
+    display: none !important;
   }
   .ProseMirror ul[data-type="taskList"] {
     list-style: none;
