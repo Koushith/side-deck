@@ -194,6 +194,17 @@ ipcMain.handle('vault:close', async () => {
 });
 
 // ---- IPC: Files ----
+// Extensions surfaced in the file tree — matches the set Obsidian shows by default.
+// Markdown + canvas are editable; the rest are visible as attachments (image previews,
+// design files, PDFs, etc.) so folders aren't mysteriously empty.
+const INDEXED_EXTS = new Set([
+  '.md', '.canvas', '.base',
+  '.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp',
+  '.pdf', '.pen',
+  '.mp3', '.mp4', '.webm', '.ogg', '.wav', '.m4a', '.mov',
+  '.csv', '.json', '.html', '.txt',
+]);
+
 async function walkVault(root: string): Promise<{ path: string; rel: string; mtime: number }[]> {
   const out: { path: string; rel: string; mtime: number }[] = [];
   async function walk(dir: string) {
@@ -203,7 +214,9 @@ async function walkVault(root: string): Promise<{ path: string; rel: string; mti
       const full = path.join(dir, entry.name);
       if (entry.isDirectory()) {
         await walk(full);
-      } else if (entry.isFile() && (entry.name.endsWith('.md') || entry.name.endsWith('.canvas'))) {
+      } else if (entry.isFile()) {
+        const ext = path.extname(entry.name).toLowerCase();
+        if (!INDEXED_EXTS.has(ext)) continue;
         const stat = await fs.stat(full);
         out.push({
           path: full,
@@ -309,7 +322,7 @@ ipcMain.handle('watch:start', async (_e, vaultPath: string) => {
     ignoreInitial: true,
     awaitWriteFinish: { stabilityThreshold: 150, pollInterval: 50 },
   });
-  const matchExt = (p: string) => p.endsWith('.md') || p.endsWith('.canvas');
+  const matchExt = (p: string) => INDEXED_EXTS.has(path.extname(p).toLowerCase());
   watcher
     .on('add', (p) => matchExt(p) && win?.webContents.send('watch:event', { type: 'add', path: p }))
     .on('change', (p) => matchExt(p) && win?.webContents.send('watch:event', { type: 'change', path: p }))

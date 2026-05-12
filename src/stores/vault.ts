@@ -75,12 +75,14 @@ function persistPinned(vaultPath: string | null, pinned: Set<string>) {
 async function indexFile(vaultPath: string, rel: string, mtime: number): Promise<VaultFile> {
   const full = joinPath(vaultPath, rel);
   const fallback = basenameNoExt(rel);
-  // Canvas files: index by name only, no body parsing.
-  if (rel.endsWith('.canvas')) {
+  // Only markdown files have text content worth parsing for links/tags/title.
+  // Canvas and attachments (images, PDFs, .pen, .base, …) are name-only entries
+  // so the sidebar can show them without us reading binary data.
+  if (!rel.toLowerCase().endsWith('.md')) {
     return { path: full, rel, name: fallback, mtime, links: [], tags: [], title: fallback };
   }
   const raw = await api.files.read(full);
-  const parsed = parseNote(raw, fallback);
+  const parsed = parseNote(raw, fallback, rel);
   return {
     path: full,
     rel,
@@ -218,6 +220,11 @@ export const useVault = create<VaultState>((set, get) => ({
   },
 
   openFile(rel) {
+    // Only markdown and canvas have editors. Attachments (images, PDFs, .pen, .base, …)
+    // are visible in the tree but click-no-op until a dedicated viewer exists, so we
+    // don't shove binary data into the markdown editor.
+    const lower = rel.toLowerCase();
+    if (!lower.endsWith('.md') && !lower.endsWith('.canvas')) return;
     set((s) => {
       const tabs = s.tabs.includes(rel) ? s.tabs : [...s.tabs, rel];
       return { activeFile: rel, view: 'editor', tabs };

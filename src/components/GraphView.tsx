@@ -87,13 +87,20 @@ export function GraphView() {
   const { nodeCount, edgeCount } = useMemo(() => {
     let edges = 0;
     const filesArr = [...files.values()];
+    const ghosts = new Set<string>();
+    const ghostExtRe = /\.(canvas|base|pen|png|jpe?g|gif|webp|svg|pdf|mp3|mp4|webm|csv|json)$/i;
     for (const f of filesArr) {
       for (const link of f.links) {
         const r = resolveWikilink(link, filesArr);
-        if (r) edges++;
+        if (r) {
+          edges++;
+        } else if (ghostExtRe.test(link)) {
+          edges++;
+          ghosts.add(link);
+        }
       }
     }
-    return { nodeCount: filesArr.length, edgeCount: edges };
+    return { nodeCount: filesArr.length + ghosts.size, edgeCount: edges };
   }, [files]);
 
   // Per-folder color map — deterministic, no hash collisions. Re-keyed on themeKey/themeMode
@@ -130,8 +137,12 @@ export function GraphView() {
     // Build the full graph
     const graph = new Graph({ multi: false, type: 'undirected' });
 
+    // Files that link to an extension we don't index (png, pen, base, etc.) get
+    // surfaced as Obsidian-style "ghost" nodes — same as Obsidian's unresolved links.
+    const GHOST_EXT_RE = /\.(canvas|base|pen|png|jpe?g|gif|webp|svg|pdf|mp3|mp4|webm|csv|json)$/i;
     const degree = new Map<string, number>();
     const edges: [string, string][] = [];
+    const ghosts = new Map<string, string>(); // ghostKey → display label
     for (const f of filesArr) {
       degree.set(f.rel, degree.get(f.rel) ?? 0);
       for (const link of f.links) {
@@ -142,6 +153,13 @@ export function GraphView() {
           edges.push([a, b]);
           degree.set(a, (degree.get(a) ?? 0) + 1);
           degree.set(b, (degree.get(b) ?? 0) + 1);
+        } else if (!r && GHOST_EXT_RE.test(link)) {
+          // Ghost attachment node — labelled with the basename like Obsidian does.
+          const ghostId = `ghost::${link}`;
+          if (!ghosts.has(ghostId)) ghosts.set(ghostId, link.split('/').pop() || link);
+          edges.push([f.rel, ghostId]);
+          degree.set(f.rel, (degree.get(f.rel) ?? 0) + 1);
+          degree.set(ghostId, (degree.get(ghostId) ?? 0) + 1);
         }
       }
     }
@@ -151,12 +169,28 @@ export function GraphView() {
       const top = f.rel.split('/')[0];
       const folderKey = f.rel.includes('/') ? top : '/';
       graph.addNode(f.rel, {
-        label: f.title || f.name,
+        // File basename, like Obsidian — short and uniform so the canvas reads cleanly.
+        label: f.name,
         x: Math.random(),
         y: Math.random(),
-        size: 5 + Math.min(d, 12) * 0.9,
+        // Smaller base so isolated notes recede; hubs still grow visibly with degree.
+        size: 3 + Math.min(d, 14) * 0.7,
         color: folderColors.get(folderKey) ?? PALETTE_LIGHT[0],
         folderKey,
+      });
+    }
+
+    // Ghost nodes — neutral grey, smaller than real notes so they recede visually.
+    const ghostColor = isBgDark() ? 'rgba(180, 175, 165, 0.55)' : 'rgba(120, 114, 100, 0.55)';
+    for (const [ghostId, label] of ghosts) {
+      const d = degree.get(ghostId) ?? 0;
+      graph.addNode(ghostId, {
+        label,
+        x: Math.random(),
+        y: Math.random(),
+        size: 2 + Math.min(d, 8) * 0.5,
+        color: ghostColor,
+        folderKey: '__ghost__',
       });
     }
     const seen = new Set<string>();
@@ -166,7 +200,7 @@ export function GraphView() {
       seen.add(k);
       try {
         // Don't set per-edge color — let the theme-aware defaultEdgeColor win.
-        graph.addEdge(a, b, { size: 1 });
+        graph.addEdge(a, b, { size: 1.4 });
       } catch {
         /* dup edge, ignore */
       }
@@ -186,23 +220,25 @@ export function GraphView() {
 
     if (graph.order === 0) return;
 
-    const settings = forceAtlas2.inferSettings(graph);
-    forceAtlas2.assign(graph, { iterations: 200, settings });
+    // `slowDown` tames the continuous jiggle once nodes are roughly placed. Trust
+    // inferSettings for the rest — overriding gravity/scalingRatio either piles connected
+    // nodes on top of each other or sends disconnected ones flying off-screen.
+    const settings = { ...forceAtlas2.inferSettings(graph), slowDown: 10 };
+    // Light upfront settle — the rest happens visibly via the RAF loop so the user sees
+    // the Obsidian-style "jiggle into place" rather than a pre-baked layout snapping in.
+    forceAtlas2.assign(graph, { iterations: 80, settings: { ...settings, slowDown: 1 } });
 
     // Read theme colors so labels/edges/fades stay legible on every palette + mode.
-    const inkColor = readVar('--c-text');
     const accentColor = readVar('--c-accent');
     const bgIsDark = isBgDark();
-    // Edges: on dark canvases pull --c-text (cream/white) at ~55% alpha so lines read clearly
-    // without dominating. On light canvases use the subtler --c-text-subtle since dark-on-cream
-    // is already high contrast and full alpha would feel harsh.
-    const edgeColor = bgIsDark ? readVarRgba('--c-text', 0.55) : readVar('--c-text-subtle');
-    const edgeFadeColor = bgIsDark ? readVarRgba('--c-text', 0.18) : readVarRgba('--c-text-subtle', 0.35);
+    // Edges: match Obsidian — clearly visible neutral lines, not subtle hairlines.
+    const edgeColor = bgIsDark ? readVarRgba('--c-text', 0.8) : readVarRgba('--c-text-muted', 0.85);
+    const edgeFadeColor = bgIsDark ? readVarRgba('--c-text', 0.22) : readVarRgba('--c-text-subtle', 0.4);
     // Faded node tone — keeps recessive nodes visible without being prominent.
     const nodeFadeColor = bgIsDark ? readVarRgba('--c-text', 0.35) : readVar('--c-text-subtle');
-    // Label pill: invert against the canvas so labels POP. Dark canvas → light pill + dark
-    // text; light canvas → keep the subtle elevated-bg card style (dark-on-cream is already
-    // high contrast and full inversion would be too aggressive).
+    // Default labels: plain text on canvas, soft so they don't fight the nodes — Obsidian style.
+    const labelInkColor = bgIsDark ? readVarRgba('--c-text', 0.78) : readVarRgba('--c-text-muted', 0.95);
+    // Pill (hover only): inverted against the canvas so the focused label POPs clearly.
     const labelBgColor = bgIsDark ? readVar('--c-text') : readVar('--c-bg-elevated');
     const labelTextColor = bgIsDark ? readVar('--c-bg') : readVar('--c-text');
     const labelBorderColor = readVar('--c-border');
@@ -252,28 +288,23 @@ export function GraphView() {
       renderEdgeLabels: false,
       defaultNodeType: 'circle',
       nodeProgramClasses: { circle: NodeCircleProgram },
-      labelColor: { color: inkColor },
+      labelColor: { color: labelInkColor },
       labelSize: 12,
       labelWeight: '500',
       labelDensity: 1,
-      labelGridCellSize: 90,
-      labelRenderedSizeThreshold: 0,
+      labelGridCellSize: 100,
+      // Threshold by rendered pixel size — small/isolated nodes drop their labels at
+      // default zoom; zooming in reveals the rest. Keeps the canvas legible like Obsidian.
+      labelRenderedSizeThreshold: 3,
       defaultEdgeColor: edgeColor,
       minCameraRatio: 0.1,
       maxCameraRatio: 10,
       defaultDrawNodeLabel: (context, data, settings) => {
         if (!data.label || typeof data.label !== 'string') return;
-        drawPillLabel(
-          context,
-          data.label,
-          data.x,
-          data.y,
-          data.size,
-          settings.labelSize,
-          settings.labelFont,
-          settings.labelWeight,
-          false,
-        );
+        // Plain text on canvas — no pill — so labels read like Obsidian's.
+        context.font = `${settings.labelWeight} ${settings.labelSize}px ${settings.labelFont}`;
+        context.fillStyle = labelInkColor;
+        context.fillText(data.label, data.x + data.size + 4, data.y + settings.labelSize / 3);
       },
       defaultDrawNodeHover: (context, data, settings) => {
         if (!data.label || typeof data.label !== 'string') return;
@@ -317,6 +348,8 @@ export function GraphView() {
     });
 
     renderer.on('clickNode', ({ node }) => {
+      // Ghost nodes are unindexed attachments (images, .pen, .base, …) — no editor for them.
+      if (node.startsWith('ghost::')) return;
       openFile(node);
       setView('editor');
     });
@@ -358,21 +391,22 @@ export function GraphView() {
     renderer.getMouseCaptor().on('mouseup', stopDrag);
     renderer.getMouseCaptor().on('mouseleave', stopDrag);
 
-    // Settle FA2 a few extra frames for smoothness. Track cancellation so the
-    // pending RAF doesn't refresh a renderer that's already been killed (which
-    // throws "could not find a suitable program for node type 'circle'!" under
-    // React 18 strict-mode double-mount and HMR).
-    let frame = 0;
+    // Continuous physics — keeps the graph "alive" with Obsidian's signature jiggle.
+    // FA2 has no convergence detection, so each iteration produces tiny residual motion
+    // even at equilibrium. Throttling to every other frame (~30Hz physics, 60Hz render)
+    // keeps CPU cost reasonable on dense graphs. Cancellation guards the pending RAF
+    // from refreshing a killed renderer under React strict-mode double-mount + HMR.
     let cancelled = false;
     let rafId: number | null = null;
+    let physicsFrame = 0;
     const tick = () => {
       if (cancelled) return;
-      if (!isDragging) {
+      if (!isDragging && physicsFrame % 2 === 0) {
         forceAtlas2.assign(graph, { iterations: 1, settings });
       }
+      physicsFrame++;
       renderer.refresh({ skipIndexation: false });
-      frame++;
-      if (frame < 80) rafId = requestAnimationFrame(tick);
+      rafId = requestAnimationFrame(tick);
     };
     rafId = requestAnimationFrame(tick);
 
