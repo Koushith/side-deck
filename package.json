@@ -1,6 +1,6 @@
 {
   "name": "second-brain",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "A friendly second brain for everyone — Obsidian-style, Notion-easy.",
   "author": {
     "name": "Koushith",
@@ -20,6 +20,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@fontsource-variable/inter": "^5.2.8",
+    "@fontsource-variable/jetbrains-mono": "^5.2.8",
+    "@fontsource-variable/source-serif-4": "^5.2.9",
     "@tiptap/extension-bubble-menu": "^2.27.2",
     "@tiptap/extension-code-block-lowlight": "^2.27.2",
     "@tiptap/extension-image": "^2.27.2",
@@ -38,6 +41,7 @@
     "@xyflow/react": "^12.10.2",
     "chokidar": "^4.0.1",
     "clsx": "^2.1.1",
+    "electron-updater": "^6.8.3",
     "graphology": "^0.25.4",
     "graphology-layout-forceatlas2": "^0.10.1",
     "gray-matter": "^4.0.3",
@@ -83,30 +87,101 @@
     "mac": {
       "category": "public.app-category.productivity",
       "target": [
-        { "target": "dmg", "arch": ["arm64", "x64"] },
-        { "target": "zip", "arch": ["arm64", "x64"] }
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        },
+        {
+          "target": "mas",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
       ],
-      "hardenedRuntime": false,
+      "hardenedRuntime": true,
       "gatekeeperAssess": false,
-      "identity": null,
-      "icon": "build/icon.icns"
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "icon": "build/icon.icns",
+      "notarize": false
+    },
+    "mas": {
+      "category": "public.app-category.productivity",
+      "entitlements": "build/entitlements.mas.plist",
+      "entitlementsInherit": "build/entitlements.mas.plist",
+      "hardenedRuntime": true,
+      "provisioningProfile": "build/SideNotes.provisionprofile"
     },
     "dmg": {
       "title": "SideNotes ${version} ${arch}",
       "icon": "build/icon.icns",
-      "window": { "width": 540, "height": 380 },
+      "window": {
+        "width": 540,
+        "height": 380
+      },
       "contents": [
-        { "x": 140, "y": 200, "type": "file" },
-        { "x": 400, "y": 200, "type": "link", "path": "/Applications" }
+        {
+          "x": 140,
+          "y": 200,
+          "type": "file"
+        },
+        {
+          "x": 400,
+          "y": 200,
+          "type": "link",
+          "path": "/Applications"
+        }
       ],
       "writeUpdateInfo": false
     },
     "win": {
       "target": [
-        { "target": "nsis", "arch": ["x64", "arm64"] },
-        { "target": "portable", "arch": ["x64"] }
+        {
+          "target": "nsis",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "appx",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
       ],
       "icon": "build/icon.ico"
+    },
+    "appx": {
+      "applicationId": "SideNotes",
+      "displayName": "SideNotes",
+      "publisherDisplayName": "Koushith",
+      "identityName": "REPLACE_WITH_PARTNER_CENTER_PACKAGE_NAME",
+      "publisher": "CN=REPLACE_WITH_PARTNER_CENTER_PUBLISHER_ID",
+      "backgroundColor": "#15130f",
+      "languages": [
+        "en-US"
+      ],
+      "showNameOnTiles": true,
+      "addAutoLaunchExtension": false
     },
     "nsis": {
       "oneClick": false,
@@ -117,12 +192,31 @@
     },
     "linux": {
       "target": [
-        { "target": "AppImage", "arch": ["x64", "arm64"] },
-        { "target": "deb", "arch": ["x64", "arm64"] }
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
       ],
       "category": "Utility",
       "icon": "build/icon.png"
     },
-    "publish": null
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Koushith",
+        "repo": "side-deck",
+        "releaseType": "release"
+      }
+    ]
   }
 }

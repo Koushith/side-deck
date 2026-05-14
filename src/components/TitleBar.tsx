@@ -14,6 +14,7 @@ import {
   Keyboard,
   Pin,
   Megaphone,
+  ShieldCheck,
 } from 'lucide-react';
 import { useVault } from '@/stores/vault';
 import { useTheme } from '@/stores/theme';
@@ -26,10 +27,11 @@ interface Props {
   onOpenPalette: () => void;
   onShowShortcuts?: () => void;
   onShowWhatsNew?: () => void;
+  onShowAbout?: () => void;
   onGetEditorHtml?: () => string | null;
 }
 
-export function TitleBar({ onOpenPalette, onShowShortcuts, onShowWhatsNew, onGetEditorHtml }: Props) {
+export function TitleBar({ onOpenPalette, onShowShortcuts, onShowWhatsNew, onShowAbout, onGetEditorHtml }: Props) {
   const view = useVault((s) => s.view);
   const setView = useVault((s) => s.setView);
   const vaultPath = useVault((s) => s.vaultPath);
@@ -208,6 +210,15 @@ export function TitleBar({ onOpenPalette, onShowShortcuts, onShowWhatsNew, onGet
               Insert from Template…
             </Item>
             <div className="my-1 border-t border-border" />
+            <Item
+              icon={<ShieldCheck size={13} />}
+              onClick={() => {
+                setMoreOpen(false);
+                onShowAbout?.();
+              }}
+            >
+              About & Privacy
+            </Item>
             <Item
               icon={<FileDown size={13} />}
               onClick={() => {

@@ -18,6 +18,7 @@ import { CommandPalette } from '@/components/CommandPalette';
 import { Onboarding } from '@/components/Onboarding';
 import { ShortcutsHelp } from '@/components/ShortcutsHelp';
 import { WhatsNew, shouldShowWhatsNew, markWhatsNewSeen } from '@/components/WhatsNew';
+import { About } from '@/components/About';
 import { VaultSwitcher } from '@/components/VaultSwitcher';
 
 export default function App() {
@@ -49,6 +50,7 @@ export default function App() {
     return shouldShowWhatsNew();
   });
   const [vaultSwitcherOpen, setVaultSwitcherOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
 
   useEffect(() => {
     init();
@@ -113,6 +115,7 @@ export default function App() {
         <Onboarding />
         <ShortcutsHelp open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
         <WhatsNew open={whatsNewOpen} onClose={() => setWhatsNewOpen(false)} />
+        <About open={aboutOpen} onClose={() => setAboutOpen(false)} />
         <VaultSwitcher open={vaultSwitcherOpen} onClose={() => setVaultSwitcherOpen(false)} />
       </>
     );
@@ -128,6 +131,7 @@ export default function App() {
           onOpenPalette={() => setPaletteOpen(true)}
           onShowShortcuts={() => setShortcutsOpen(true)}
           onShowWhatsNew={() => setWhatsNewOpen(true)}
+          onShowAbout={() => setAboutOpen(true)}
           onGetEditorHtml={() => useEditorRef.getState().editor?.getHTML() ?? null}
         />
       )}
@@ -180,6 +184,7 @@ export default function App() {
       <Onboarding />
       <ShortcutsHelp open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       <WhatsNew open={whatsNewOpen} onClose={() => setWhatsNewOpen(false)} />
+      <About open={aboutOpen} onClose={() => setAboutOpen(false)} />
       <VaultSwitcher open={vaultSwitcherOpen} onClose={() => setVaultSwitcherOpen(false)} />
     </div>
   );

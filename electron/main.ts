@@ -6,6 +6,8 @@ import fs from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import os from 'node:os';
 import chokidar, { FSWatcher } from 'chokidar';
+import pkg from 'electron-updater';
+const { autoUpdater } = pkg;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 process.env.APP_ROOT = path.join(__dirname, '..');
@@ -116,13 +118,32 @@ app.whenReady().then(() => {
     }
   });
 
+  // Auto-update for direct-distribution builds (DMG / NSIS). The Mac App Store
+  // and Microsoft Store update their bundles themselves, so we skip the
+  // electron-updater path when running under either — its sandbox blocks
+  // self-modification anyway. Also skip in dev / when unpackaged.
+  // (Apple sets `process.mas`, Microsoft Store sets `process.windowsStore`.)
+  const isStoreBuild =
+    (process as NodeJS.Process & { mas?: boolean; windowsStore?: boolean }).mas ||
+    (process as NodeJS.Process & { mas?: boolean; windowsStore?: boolean }).windowsStore;
+  if (app.isPackaged && !isStoreBuild) {
+    autoUpdater.logger = console;
+    autoUpdater.autoDownload = true;
+    autoUpdater.autoInstallOnAppQuit = true;
+    autoUpdater.checkForUpdatesAndNotify().catch((err) => {
+      console.warn('auto-update check failed:', err);
+    });
+  }
+
   if (!VITE_DEV_SERVER_URL) {
     session.defaultSession.webRequest.onHeadersReceived((details, cb) => {
       cb({
         responseHeaders: {
           ...details.responseHeaders,
+          // Fonts are bundled into the renderer, so the production CSP has no
+          // remote allow-list — the app makes zero outbound network requests.
           'Content-Security-Policy': [
-            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: vault:; connect-src 'self';",
+            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: vault:; connect-src 'self';",
           ],
         },
       });
