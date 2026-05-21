@@ -30,7 +30,7 @@ const MERMAID = F(10);
 const VIEWER = F(13);          // mock photo + PDF + staggered format chips
 const TODOS = F(13);           // animated checklist
 const RECAP = F(20);           // five before/after cards — 4s each so they breathe
-const OUTRO = F(9);            // richer end card with privacy / platforms / byline
+const OUTRO = F(10);           // richer end card: S mark · headline · tagline · pills · K-monogram byline
 
 export function totalFramesCinematic(): number {
   return SLATE + FOLDER + MERMAID + VIEWER + TODOS + RECAP + OUTRO;
@@ -1130,6 +1130,9 @@ function ThemeAfter() {
 
 function Outro() {
   const frame = useCurrentFrame();
+  // Each line stages in with its own delay so the end card reads as credits, not a wall.
+  const fadeAt = (start: number, dur = 18) =>
+    interpolate(frame, [start, start + dur], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
   return (
     <SoftFade durationFrames={OUTRO}>
       <div style={{ position: 'relative', width: '100%', height: '100%', background: COLORS.bg }}>
@@ -1143,31 +1146,54 @@ function Outro() {
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: 24,
+              gap: 22,
             }}
           >
+            {/* Brand mark — circle back to the slate's S mark */}
             <div
               style={{
-                fontFamily: FONTS.mono,
-                fontSize: 17,
-                letterSpacing: 6,
-                color: COLORS.accent,
-                textTransform: 'uppercase',
-                opacity: interpolate(frame, [0, 18], [0, 1], { extrapolateRight: 'clamp' }),
+                width: 64,
+                height: 64,
+                borderRadius: 14,
+                background: COLORS.text,
+                color: COLORS.bg,
+                display: 'grid',
+                placeItems: 'center',
+                fontFamily: FONTS.serif,
+                fontStyle: 'italic',
+                fontWeight: 700,
+                fontSize: 40,
+                opacity: fadeAt(0),
+                boxShadow: '0 18px 50px rgba(196, 177, 255, 0.18)',
               }}
             >
-              Quietly handcrafted
+              S
             </div>
+
             <SlowType
               text="sidenotes.me"
-              delay={20}
-              cps={11}
-              size={108}
+              delay={16}
+              cps={12}
+              size={104}
               font={FONTS.serif}
               letterSpacing={-2.5}
               color={COLORS.accentInk}
             />
-            {/* Three pill rows: privacy · platforms · byline */}
+
+            <div
+              style={{
+                fontFamily: FONTS.serif,
+                fontStyle: 'italic',
+                fontSize: 22,
+                color: COLORS.textMuted,
+                opacity: fadeAt(70, 24),
+                marginTop: 2,
+              }}
+            >
+              A quiet place for thinking.
+            </div>
+
+            {/* Platforms + privacy pills */}
             <div
               style={{
                 marginTop: 18,
@@ -1175,7 +1201,7 @@ function Outro() {
                 gap: 12,
                 flexWrap: 'wrap',
                 justifyContent: 'center',
-                opacity: interpolate(frame, [80, 120], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }),
+                opacity: fadeAt(100, 28),
               }}
             >
               <OutroPill icon="🔒" label="Privacy first" tone="accent" />
@@ -1183,26 +1209,76 @@ function Outro() {
               <OutroPill icon="◧" label="Windows" />
               <OutroPill icon="🐧" label="Linux" />
             </div>
+
+            {/* Maker byline — K monogram + serif italic name */}
             <div
               style={{
                 marginTop: 14,
-                fontFamily: FONTS.serif,
-                fontSize: 22,
-                color: COLORS.textMuted,
-                opacity: interpolate(frame, [130, 170], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }),
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 14,
+                padding: '10px 22px 10px 14px',
+                borderRadius: 999,
+                border: `1px solid ${COLORS.border}`,
+                background: COLORS.bgElevated,
+                opacity: fadeAt(150, 28),
               }}
             >
-              Built with care by <span style={{ color: COLORS.text, fontStyle: 'italic' }}>@koushith</span>
+              <div
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: '50%',
+                  background: `linear-gradient(135deg, ${COLORS.accent} 0%, ${COLORS.link} 100%)`,
+                  color: COLORS.bg,
+                  display: 'grid',
+                  placeItems: 'center',
+                  fontFamily: FONTS.serif,
+                  fontStyle: 'italic',
+                  fontWeight: 700,
+                  fontSize: 19,
+                  letterSpacing: -1,
+                  boxShadow: `0 6px 20px ${COLORS.accent}40`,
+                }}
+              >
+                K
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <div
+                  style={{
+                    fontFamily: FONTS.mono,
+                    fontSize: 10,
+                    letterSpacing: 2.5,
+                    color: COLORS.textSubtle,
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  Made by
+                </div>
+                <div
+                  style={{
+                    fontFamily: FONTS.serif,
+                    fontSize: 22,
+                    fontWeight: 600,
+                    color: COLORS.text,
+                    letterSpacing: -0.5,
+                  }}
+                >
+                  Koushith
+                </div>
+              </div>
             </div>
+
+            {/* Footer eyebrow */}
             <div
               style={{
-                marginTop: 4,
+                marginTop: 6,
                 fontFamily: FONTS.mono,
-                fontSize: 13,
-                letterSpacing: 3,
+                fontSize: 12,
+                letterSpacing: 4,
                 color: COLORS.textSubtle,
                 textTransform: 'uppercase',
-                opacity: interpolate(frame, [180, 220], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }),
+                opacity: fadeAt(195, 28),
               }}
             >
               Your notes never leave your device
