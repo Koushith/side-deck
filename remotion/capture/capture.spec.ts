@@ -92,62 +92,70 @@ test('SideNotes v0.3.0 live demo capture', async () => {
 
   // ----- Beat 1: hero — sidebar + welcome ----------------------------------
   beat('hero', 'SideNotes · v0.3.0');
-  await hold(2200);
+  await hold(3000);
 
-  // ----- Beat 2: open today — see streak + carry-forward -------------------
+  // ----- Beat 2: open today's daily note via ⌘D ----------------------------
+  // The streak chip + 'Yesterday's loose ends' card need a beat to mount.
   beat('today', "Today's note — streak + carry-forward");
   await window.keyboard.press('Meta+D');
-  await hold(2600);
+  await hold(4500);
 
-  // ----- Beat 3: type a thought, watch words count tick up -----------------
+  // ----- Beat 3: type a paragraph live so the camera sees writing happen ---
   beat('typing', 'Live word + task counts');
   await window.keyboard.press('Meta+ArrowDown');
-  await window.keyboard.type('Shipping v0.3.0 today. Big day.', { delay: 36 });
-  await hold(1200);
-  // Toggle one of the carry-forward checkboxes by scrolling up + clicking
-  await hold(800);
+  await hold(400);
+  await window.keyboard.type(
+    'Big launch day. Cutting the v0.3.0 release video and shipping the changelog.',
+    { delay: 48 }
+  );
+  await hold(1600);
 
-  // ----- Beat 4: virtual year/month grouping -------------------------------
-  beat('grouping', 'Daily Notes auto-group by Year / Month');
-  // Click on the Daily Notes folder in sidebar. We use a selector that matches
-  // the rendered text. If it fails the beat still has a timestamp and Remotion
-  // can fall back to a label-over-still.
+  // ----- Beat 4: sidebar virtual Year / Month grouping ---------------------
+  beat('grouping', 'Year / Month grouping in the sidebar');
   try {
-    await window.click('text=Daily Notes', { timeout: 2000 });
+    // Click a previous month so the user sees the virtual tree expand.
+    await window.click('text=March', { timeout: 2000 });
   } catch {
-    /* sidebar may already be open */
+    /* if collapsed already, no-op */
   }
-  await hold(2400);
+  await hold(2800);
+  try {
+    await window.click('text=April', { timeout: 1500 });
+  } catch {
+    /* ignore */
+  }
+  await hold(2200);
 
-  // ----- Beat 5: open a dated todo file ------------------------------------
+  // ----- Beat 5: open a dated todo file — progress + checklist -------------
   beat('todo', 'Todo notes — progress + Add task');
   try {
+    // Expand Todos folder if needed
     await window.click('text=Todos', { timeout: 2000 });
     await hold(600);
     await window.click('text=2026-05-22', { timeout: 2000 });
   } catch {
     /* no-op fallback */
   }
-  await hold(2800);
+  await hold(4500);
 
-  // ----- Beat 6: command palette ------------------------------------------
+  // ----- Beat 6: command palette -------------------------------------------
   beat('palette', 'Jump anywhere · ⌘K');
   await window.keyboard.press('Meta+K');
-  await hold(800);
-  await window.keyboard.type('launch', { delay: 50 });
-  await hold(1400);
+  await hold(900);
+  await window.keyboard.type('launch', { delay: 60 });
+  await hold(2200);
   await window.keyboard.press('Escape');
-  await hold(400);
+  await hold(500);
 
-  // ----- Beat 7: graph view ------------------------------------------------
+  // ----- Beat 7: graph view with real connections --------------------------
   beat('graph', 'Graph view');
   await window.keyboard.press('Meta+2');
-  await hold(3200);
+  await hold(5000);
 
   // ----- Beat 8: back to editor — outro ------------------------------------
   beat('outro', 'Get SideNotes · v0.3.0');
   await window.keyboard.press('Meta+1');
-  await hold(2200);
+  await hold(2400);
 
   // Close last beat
   beats[beats.length - 1].endMs = Date.now() - captureStart;

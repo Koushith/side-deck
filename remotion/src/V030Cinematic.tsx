@@ -23,16 +23,16 @@ import beatsData from '../public/captures/beats.json';
 const FPS = 30;
 const F = (s: number) => Math.round(s * FPS);
 
-// Per-section frame budgets (~110s total cinematic cut)
+// Per-section frame budgets (~120s total cinematic cut)
 const SLATE = F(4.5);          // intro slate
 const FOLDER = F(13);          // folder flat creation centerpiece
 const MERMAID = F(10);
-const VIEWER = F(10);
-const TODOS = F(10);
-const LIVE_PAD = F(0.8);       // slight pre-roll into the capture
+const VIEWER = F(12);          // now includes mock photo + PDF preview frames
+const TODOS = F(13);           // now includes animated checklist
+const LIVE_PAD = F(2.6);       // proper "see it in action" beat
 const CAPTURE_MS = beatsData[beatsData.length - 1]?.endMs ?? 22000;
 const CAPTURE = Math.round((CAPTURE_MS / 1000) * FPS);
-const RECAP = F(11);           // fixes recap montage
+const RECAP = F(15);           // five fix beats with UI mocks
 const OUTRO = F(7);
 
 export function totalFramesCinematic(): number {
@@ -185,122 +185,343 @@ function MermaidScene() {
 }
 
 function ViewerScene() {
-  const exts = ['.png', '.jpg', '.gif', '.webp', '.svg', '.bmp', '.avif', '.pdf'];
+  const frame = useCurrentFrame();
+  // Two mock window frames slide in: a photo and a PDF. After both land,
+  // the extension list fades in below as supporting evidence.
   return (
     <SoftFade durationFrames={VIEWER}>
       <div style={{ position: 'relative', width: '100%', height: '100%', background: COLORS.bg }}>
         <HaloBackdrop />
-        <Camera fromScale={1.08} toScale={1} duration={VIEWER} easing="easeOut">
-          <div style={{ position: 'absolute', inset: 0, padding: '120px 140px' }}>
-            <div style={{ fontFamily: FONTS.mono, fontSize: 14, letterSpacing: 4, color: COLORS.accent, textTransform: 'uppercase' }}>
-              Image + PDF viewer
-            </div>
-            <div style={{ marginTop: 18 }}>
-              <SlowType
-                text="Click any attachment. Open it in a tab."
-                cps={22}
-                size={68}
-                font={FONTS.serif}
-                letterSpacing={-1.6}
-              />
-            </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, marginTop: 64, maxWidth: 1200 }}>
-              {exts.map((ext, i) => (
-                <Reveal
-                  key={ext}
-                  delay={60 + i * 10}
-                  y={20}
-                  style={{
-                    padding: '20px 28px',
-                    borderRadius: 14,
-                    border: `1px solid ${COLORS.accent}`,
-                    background: COLORS.accentSubtle,
-                    fontFamily: FONTS.mono,
-                    fontSize: 30,
-                    color: COLORS.accentInk,
-                  }}
-                >
-                  {ext}
-                </Reveal>
-              ))}
-            </div>
-            <div
-              style={{
-                marginTop: 48,
-                fontFamily: FONTS.sans,
-                fontSize: 22,
-                color: COLORS.textMuted,
-              }}
-            >
-              Native PDF viewer · Fit / Actual size · Reveal in Finder
-            </div>
+        <div style={{ position: 'absolute', inset: 0, padding: '100px 140px 80px 140px' }}>
+          <div style={{ fontFamily: FONTS.mono, fontSize: 14, letterSpacing: 4, color: COLORS.accent, textTransform: 'uppercase' }}>
+            Image + PDF viewer
           </div>
-        </Camera>
+          <div style={{ marginTop: 14 }}>
+            <SlowType
+              text="Click an attachment. It opens in a tab."
+              cps={22}
+              size={60}
+              font={FONTS.serif}
+              letterSpacing={-1.5}
+            />
+          </div>
+
+          {/* Two mock window frames side-by-side */}
+          <div style={{ display: 'flex', gap: 32, marginTop: 56, alignItems: 'flex-start' }}>
+            <MockPhotoFrame delay={50} />
+            <MockPdfFrame delay={110} />
+          </div>
+
+          {/* Supporting evidence: extension chips fade in last */}
+          <div
+            style={{
+              marginTop: 48,
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 10,
+              opacity: interpolate(frame, [220, 260], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }),
+            }}
+          >
+            {['.png', '.jpg', '.gif', '.webp', '.svg', '.bmp', '.avif', '.pdf'].map((ext) => (
+              <span
+                key={ext}
+                style={{
+                  padding: '10px 18px',
+                  borderRadius: 999,
+                  border: `1px solid ${COLORS.border}`,
+                  background: COLORS.bgElevated,
+                  fontFamily: FONTS.mono,
+                  fontSize: 18,
+                  color: COLORS.textMuted,
+                }}
+              >
+                {ext}
+              </span>
+            ))}
+          </div>
+        </div>
       </div>
     </SoftFade>
   );
 }
 
+function MockPhotoFrame({ delay }: { delay: number }) {
+  return (
+    <Reveal delay={delay} y={20} style={{ flex: 1, maxWidth: 720 }}>
+      <div
+        style={{
+          background: COLORS.bgElevated,
+          border: `1px solid ${COLORS.border}`,
+          borderRadius: 12,
+          overflow: 'hidden',
+          boxShadow: '0 30px 80px rgba(0,0,0,0.5)',
+        }}
+      >
+        {/* Tab strip */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '10px 14px',
+            borderBottom: `1px solid ${COLORS.borderSubtle}`,
+            background: COLORS.bg,
+          }}
+        >
+          <div style={{ display: 'flex', gap: 6 }}>
+            <Dot color="#ff5f57" />
+            <Dot color="#febc2e" />
+            <Dot color="#28c840" />
+          </div>
+          <div style={{ fontFamily: FONTS.mono, fontSize: 12, color: COLORS.textMuted, marginLeft: 8 }}>
+            travel-collage.png
+          </div>
+        </div>
+        {/* Faux image — gradient + circles */}
+        <div style={{ padding: 24 }}>
+          <div
+            style={{
+              width: '100%',
+              aspectRatio: '16 / 9',
+              borderRadius: 10,
+              background: `
+                radial-gradient(circle at 30% 30%, #f5d0a9 0px, transparent 220px),
+                radial-gradient(circle at 70% 60%, #c4b1ff 0px, transparent 240px),
+                linear-gradient(135deg, #2c2c30 0%, #1a1a1d 100%)
+              `,
+              position: 'relative',
+            }}
+          >
+            <div
+              style={{
+                position: 'absolute',
+                left: 16,
+                bottom: 14,
+                fontFamily: FONTS.mono,
+                fontSize: 11,
+                color: COLORS.textSubtle,
+              }}
+            >
+              1920 × 1080 · 1.4 MB
+            </div>
+          </div>
+          <div
+            style={{
+              marginTop: 14,
+              fontFamily: FONTS.sans,
+              fontSize: 13,
+              color: COLORS.textMuted,
+              display: 'flex',
+              gap: 16,
+            }}
+          >
+            <span>Fit</span>
+            <span>·</span>
+            <span>Actual size</span>
+            <span>·</span>
+            <span>Reveal in Finder</span>
+          </div>
+        </div>
+      </div>
+    </Reveal>
+  );
+}
+
+function MockPdfFrame({ delay }: { delay: number }) {
+  return (
+    <Reveal delay={delay} y={20} style={{ flex: 1, maxWidth: 540 }}>
+      <div
+        style={{
+          background: COLORS.bgElevated,
+          border: `1px solid ${COLORS.border}`,
+          borderRadius: 12,
+          overflow: 'hidden',
+          boxShadow: '0 30px 80px rgba(0,0,0,0.5)',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '10px 14px',
+            borderBottom: `1px solid ${COLORS.borderSubtle}`,
+            background: COLORS.bg,
+          }}
+        >
+          <div style={{ display: 'flex', gap: 6 }}>
+            <Dot color="#ff5f57" />
+            <Dot color="#febc2e" />
+            <Dot color="#28c840" />
+          </div>
+          <div style={{ fontFamily: FONTS.mono, fontSize: 12, color: COLORS.textMuted, marginLeft: 8 }}>
+            spec-v0.3.pdf
+          </div>
+        </div>
+        <div style={{ padding: 18, background: '#1f1f24' }}>
+          {/* Faux PDF page */}
+          <div
+            style={{
+              background: '#f5f1ec',
+              color: '#1a1a1c',
+              padding: '28px 26px',
+              borderRadius: 4,
+              fontFamily: FONTS.serif,
+              boxShadow: '0 6px 20px rgba(0,0,0,0.4)',
+              minHeight: 280,
+            }}
+          >
+            <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 12 }}>SideNotes v0.3 Spec</div>
+            <div style={{ height: 4, background: '#d9d2c4', borderRadius: 2, marginBottom: 14, width: '40%' }} />
+            <div style={{ height: 4, background: '#d9d2c4', borderRadius: 2, marginBottom: 8 }} />
+            <div style={{ height: 4, background: '#d9d2c4', borderRadius: 2, marginBottom: 8, width: '92%' }} />
+            <div style={{ height: 4, background: '#d9d2c4', borderRadius: 2, marginBottom: 14, width: '78%' }} />
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>1. Architecture</div>
+            <div style={{ height: 4, background: '#d9d2c4', borderRadius: 2, marginBottom: 6 }} />
+            <div style={{ height: 4, background: '#d9d2c4', borderRadius: 2, marginBottom: 6, width: '88%' }} />
+            <div style={{ height: 4, background: '#d9d2c4', borderRadius: 2, marginBottom: 6, width: '94%' }} />
+            <div style={{ height: 4, background: '#d9d2c4', borderRadius: 2, marginBottom: 6, width: '70%' }} />
+          </div>
+          <div
+            style={{
+              marginTop: 10,
+              fontFamily: FONTS.mono,
+              fontSize: 11,
+              color: COLORS.textSubtle,
+              textAlign: 'center',
+            }}
+          >
+            Page 1 of 14 · Chromium PDF viewer
+          </div>
+        </div>
+      </div>
+    </Reveal>
+  );
+}
+
+function Dot({ color }: { color: string }) {
+  return <span style={{ width: 11, height: 11, borderRadius: 999, background: color, display: 'inline-block' }} />;
+}
+
 function TodosScene() {
   const frame = useCurrentFrame();
-  const pct = Math.min(78, Math.round(interpolate(frame, [50, 220], [0, 78], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })));
+  // Five tasks. Ones at indices 0,2,4 tick on as the camera holds — animated check.
+  const tasks: { label: string; checkAt: number | null; section?: string }[] = [
+    { label: 'Cut v0.3.0 release video', checkAt: 130, section: 'Focus' },
+    { label: 'Write the launch tweet', checkAt: null },
+    { label: 'Push the site changelog', checkAt: 170 },
+    { label: 'Reply to early testers', checkAt: null, section: 'Quick wins' },
+    { label: 'Morning pages', checkAt: 210 },
+  ];
+  // Progress climbs as tasks tick — start at 12/17 (≈70%), end at 15/17 (≈88%).
+  const checkedNow = tasks.filter((t) => t.checkAt !== null && frame >= (t.checkAt ?? Infinity)).length;
+  const done = 12 + checkedNow;
+  const open = 5 - checkedNow;
+  const pct = Math.round((done / (done + open)) * 100);
+
   return (
     <SoftFade durationFrames={TODOS}>
       <div style={{ position: 'relative', width: '100%', height: '100%', background: COLORS.bg }}>
         <HaloBackdrop />
         <KenBurns from={1.04} to={1} duration={TODOS}>
-          <div style={{ position: 'absolute', inset: 0, padding: '120px 140px' }}>
+          <div style={{ position: 'absolute', inset: 0, padding: '90px 140px 80px 140px' }}>
             <div style={{ fontFamily: FONTS.mono, fontSize: 14, letterSpacing: 4, color: COLORS.accent, textTransform: 'uppercase' }}>
               Todo notes
             </div>
-            <div style={{ marginTop: 18 }}>
+            <div style={{ marginTop: 14 }}>
               <SlowType
-                text="Any /todos/ folder gets a real header."
+                text="Tick things off. Watch the bar fill."
                 cps={20}
-                size={64}
+                size={56}
                 font={FONTS.serif}
                 letterSpacing={-1.5}
               />
             </div>
-            <Reveal delay={40} y={30} style={{ marginTop: 56 }}>
+            <Reveal delay={36} y={30} style={{ marginTop: 36 }}>
               <div
                 style={{
                   background: COLORS.bgElevated,
                   border: `1px solid ${COLORS.borderSubtle}`,
-                  borderRadius: 16,
-                  padding: '40px 44px',
-                  maxWidth: 880,
-                  display: 'flex',
-                  gap: 36,
-                  alignItems: 'flex-start',
+                  borderRadius: 18,
+                  padding: '32px 36px 28px 36px',
+                  maxWidth: 1000,
+                  boxShadow: '0 30px 80px rgba(0,0,0,0.5)',
                 }}
               >
-                <div style={{ width: 88, textAlign: 'center', fontFamily: FONTS.serif }}>
-                  <div style={{ fontFamily: FONTS.mono, fontSize: 14, color: COLORS.textMuted, letterSpacing: 3 }}>FRI</div>
-                  <div style={{ fontSize: 76, fontWeight: 600, letterSpacing: -2.5, color: COLORS.text }}>22</div>
-                  <div style={{ fontFamily: FONTS.mono, fontSize: 14, color: COLORS.textMuted, letterSpacing: 3 }}>MAY 26</div>
+                {/* Header row: date masthead + stats */}
+                <div style={{ display: 'flex', gap: 28, alignItems: 'flex-start' }}>
+                  <div style={{ width: 80, textAlign: 'center', fontFamily: FONTS.serif }}>
+                    <div style={{ fontFamily: FONTS.mono, fontSize: 13, color: COLORS.textMuted, letterSpacing: 3 }}>FRI</div>
+                    <div style={{ fontSize: 64, fontWeight: 600, letterSpacing: -2, color: COLORS.text, lineHeight: 1 }}>22</div>
+                    <div style={{ fontFamily: FONTS.mono, fontSize: 13, color: COLORS.textMuted, letterSpacing: 3 }}>MAY 26</div>
+                  </div>
+                  <div style={{ flex: 1, paddingTop: 4 }}>
+                    <div style={{ fontFamily: FONTS.mono, fontSize: 13, color: COLORS.textMuted, letterSpacing: 3 }}>
+                      WORK/TODOS
+                    </div>
+                    <div style={{ marginTop: 12, fontFamily: FONTS.sans, fontSize: 19, color: COLORS.textMuted, fontVariantNumeric: 'tabular-nums' }}>
+                      <span style={{ color: open > 0 ? COLORS.text : COLORS.textMuted, fontWeight: 600 }}>{open} open</span>
+                      <span style={{ color: COLORS.textSubtle, margin: '0 8px' }}>·</span>
+                      <span style={{ color: COLORS.text }}>{done} done</span>
+                      <span style={{ color: COLORS.textSubtle, margin: '0 8px' }}>·</span>
+                      <span style={{ color: COLORS.accentInk, fontFamily: FONTS.mono }}>{pct}%</span>
+                    </div>
+                    <div
+                      style={{
+                        marginTop: 12,
+                        height: 3,
+                        width: '100%',
+                        background: COLORS.borderSubtle,
+                        borderRadius: 2,
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <div
+                        style={{
+                          height: '100%',
+                          width: `${pct}%`,
+                          background: COLORS.accent,
+                          opacity: 0.85,
+                          transition: 'width 240ms ease',
+                        }}
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontFamily: FONTS.mono, fontSize: 14, color: COLORS.textMuted, letterSpacing: 3 }}>
-                    WORK/TODOS
-                  </div>
-                  <div style={{ marginTop: 18, fontFamily: FONTS.sans, fontSize: 22, color: COLORS.textMuted }}>
-                    <span style={{ color: COLORS.text, fontWeight: 600 }}>5 open</span>
-                    {' · '}12 done{' · '}
-                    <span style={{ color: COLORS.accentInk, fontFamily: FONTS.mono }}>{pct}%</span>
-                  </div>
-                  <div
-                    style={{
-                      marginTop: 18,
-                      height: 3,
-                      width: '100%',
-                      background: COLORS.borderSubtle,
-                      borderRadius: 2,
-                      overflow: 'hidden',
-                    }}
-                  >
-                    <div style={{ height: '100%', width: `${pct}%`, background: COLORS.accent, opacity: 0.85 }} />
-                  </div>
+
+                {/* Checklist — appears under the header card with stagger */}
+                <div style={{ marginTop: 24, paddingTop: 22, borderTop: `1px solid ${COLORS.borderSubtle}` }}>
+                  {tasks.map((t, i) => {
+                    const appear = 60 + i * 12;
+                    const isChecked = t.checkAt !== null && frame >= (t.checkAt as number);
+                    const rowOpacity = interpolate(frame, [appear, appear + 14], [0, 1], {
+                      extrapolateLeft: 'clamp',
+                      extrapolateRight: 'clamp',
+                    });
+                    const rowY = interpolate(frame, [appear, appear + 18], [10, 0], {
+                      extrapolateLeft: 'clamp',
+                      extrapolateRight: 'clamp',
+                    });
+                    return (
+                      <div key={i} style={{ opacity: rowOpacity, transform: `translateY(${rowY}px)` }}>
+                        {t.section && (
+                          <div
+                            style={{
+                              fontFamily: FONTS.serif,
+                              fontSize: 15,
+                              color: COLORS.textMuted,
+                              marginTop: i === 0 ? 0 : 14,
+                              marginBottom: 8,
+                              fontWeight: 600,
+                            }}
+                          >
+                            {t.section}
+                          </div>
+                        )}
+                        <CheckRow label={t.label} checked={isChecked} checkAt={t.checkAt} frame={frame} />
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </Reveal>
@@ -311,8 +532,60 @@ function TodosScene() {
   );
 }
 
-/** Pre-roll into the live capture: full-screen "Now, the actual app." card. */
+function CheckRow({
+  label,
+  checked,
+  checkAt,
+  frame,
+}: {
+  label: string;
+  checked: boolean;
+  checkAt: number | null;
+  frame: number;
+}) {
+  // Small "pop" right when the box gets checked.
+  const sincePop = checkAt !== null ? frame - checkAt : -Infinity;
+  const pop = sincePop >= 0 && sincePop < 12 ? 1 + Math.sin((sincePop / 12) * Math.PI) * 0.18 : 1;
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '8px 0', fontFamily: FONTS.serif }}>
+      <div
+        style={{
+          width: 22,
+          height: 22,
+          borderRadius: 5,
+          border: `1.5px solid ${checked ? COLORS.accent : COLORS.textMuted}`,
+          background: checked ? COLORS.accent : 'transparent',
+          display: 'grid',
+          placeItems: 'center',
+          transform: `scale(${pop})`,
+          transition: 'background-color 200ms ease, border-color 200ms ease',
+          flexShrink: 0,
+        }}
+      >
+        {checked && (
+          <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke={COLORS.bg} strokeWidth={3.2} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M5 12l5 5 9-12" />
+          </svg>
+        )}
+      </div>
+      <div
+        style={{
+          fontSize: 20,
+          color: checked ? COLORS.textMuted : COLORS.text,
+          textDecoration: checked ? 'line-through' : 'none',
+          textDecorationColor: COLORS.textMuted,
+          transition: 'color 200ms ease',
+        }}
+      >
+        {label}
+      </div>
+    </div>
+  );
+}
+
+/** Pre-roll into the live capture: full-screen "See it in action." card. */
 function LivePreRoll() {
+  const frame = useCurrentFrame();
   return (
     <SoftFade durationFrames={LIVE_PAD}>
       <div style={{ position: 'relative', width: '100%', height: '100%', background: COLORS.bg }}>
@@ -322,18 +595,43 @@ function LivePreRoll() {
             position: 'absolute',
             inset: 0,
             display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
+            gap: 26,
           }}
         >
+          <div
+            style={{
+              fontFamily: FONTS.mono,
+              fontSize: 17,
+              letterSpacing: 6,
+              color: COLORS.accent,
+              textTransform: 'uppercase',
+              opacity: interpolate(frame, [0, 18], [0, 1], { extrapolateRight: 'clamp' }),
+            }}
+          >
+            Enough talk
+          </div>
           <SlowType
-            text="Now, the actual app."
-            cps={18}
-            size={72}
+            text="See it in action."
+            delay={14}
+            cps={9}
+            size={100}
             font={FONTS.serif}
-            letterSpacing={-1.8}
+            letterSpacing={-2.4}
             align="center"
           />
+          <div
+            style={{
+              fontFamily: FONTS.sans,
+              fontSize: 20,
+              color: COLORS.textMuted,
+              opacity: interpolate(frame, [50, 78], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }),
+            }}
+          >
+            Running on a real vault, captured live.
+          </div>
         </div>
       </div>
     </SoftFade>
@@ -380,13 +678,13 @@ function LiveCapture() {
 }
 
 const BEAT_COPY: Record<string, { eyebrow: string; headline: string; tone?: string }> = {
-  hero: { eyebrow: 'Carbon · dark', headline: 'Your plain-markdown second brain.' },
-  today: { eyebrow: 'Streak · 12 days', headline: 'Yesterday rolls into today.', tone: 'link' },
-  typing: { eyebrow: 'Live', headline: 'Words and tasks count as you type.', tone: 'tag' },
-  grouping: { eyebrow: 'Sidebar', headline: 'Year / Month grouping. Disk stays flat.' },
-  todo: { eyebrow: 'Todos', headline: 'Real progress chrome.', tone: 'accent' },
+  hero: { eyebrow: 'Your vault', headline: 'Plain markdown on your Mac.' },
+  today: { eyebrow: '12-day streak', headline: 'Yesterday rolls into today.', tone: 'link' },
+  typing: { eyebrow: 'Live counts', headline: 'Words and tasks tick as you type.', tone: 'tag' },
+  grouping: { eyebrow: 'Sidebar magic', headline: 'Year / Month grouping. Disk stays flat.' },
+  todo: { eyebrow: 'Todo notes', headline: 'Progress chrome on every checklist.', tone: 'accent' },
   palette: { eyebrow: '⌘K', headline: 'Jump anywhere.' },
-  graph: { eyebrow: 'Graph', headline: 'See how your notes connect.', tone: 'link' },
+  graph: { eyebrow: 'Graph view', headline: 'Watch your notes connect.', tone: 'link' },
   outro: { eyebrow: 'v0.3.0', headline: 'Everything in one box.', tone: 'accent' },
 };
 
@@ -449,13 +747,19 @@ function BeatLabel({ id, dur, localFrame }: { id: string; dur: number; localFram
 }
 
 function RecapMontage() {
-  // Five fix beats in fast succession with Ken Burns. Each gets ~2s.
-  const beats: { eyebrow: string; copy: string; tone?: string }[] = [
-    { eyebrow: 'Critical fix', copy: 'External edits never get clobbered again.', tone: 'tag' },
-    { eyebrow: 'Polish', copy: 'Themed dialogs replace the native modals.' },
-    { eyebrow: 'Path resolver', copy: 'blog/<slug>/foo.png — just works locally.' },
-    { eyebrow: 'Live counts', copy: 'Tasks and words tick the moment you type.' },
-    { eyebrow: 'Carbon · dark', copy: 'The new default theme on fresh installs.', tone: 'accent' },
+  // Five fix beats — each card pairs copy with a tiny UI sketch so we're showing
+  // not just telling.
+  const beats: {
+    eyebrow: string;
+    copy: string;
+    tone?: 'accent' | 'tag' | 'link';
+    visual: 'safe-write' | 'dialog' | 'paths' | 'counts' | 'carbon';
+  }[] = [
+    { eyebrow: 'No silent overwrites', copy: 'External edits stay safe.', tone: 'tag', visual: 'safe-write' },
+    { eyebrow: 'In-app dialogs', copy: 'No more native modals.', visual: 'dialog' },
+    { eyebrow: 'Smart image paths', copy: 'Publish-site URLs resolve locally.', visual: 'paths' },
+    { eyebrow: 'Live everything', copy: 'Words, tasks, streaks — all live.', visual: 'counts' },
+    { eyebrow: 'Carbon · dark', copy: 'The new default theme.', tone: 'accent', visual: 'carbon' },
   ];
   const each = Math.floor(RECAP / beats.length);
   return (
@@ -472,17 +776,30 @@ function RecapMontage() {
   );
 }
 
-function RecapCard({ eyebrow, copy, tone, duration }: { eyebrow: string; copy: string; tone?: string; duration: number }) {
+function RecapCard({
+  eyebrow,
+  copy,
+  tone,
+  visual,
+  duration,
+}: {
+  eyebrow: string;
+  copy: string;
+  tone?: 'accent' | 'tag' | 'link';
+  visual: 'safe-write' | 'dialog' | 'paths' | 'counts' | 'carbon';
+  duration: number;
+}) {
   const frame = useCurrentFrame();
   const inOp = interpolate(frame, [0, 10], [0, 1], { extrapolateRight: 'clamp' });
   const outOp = interpolate(frame, [duration - 10, duration], [1, 0], { extrapolateLeft: 'clamp' });
   const opacity = Math.min(inOp, outOp);
-  const scale = interpolate(frame, [0, duration], [1.06, 1], { extrapolateRight: 'clamp' });
+  const visualScale = interpolate(frame, [0, duration], [0.96, 1.02], { extrapolateRight: 'clamp' });
   const toneColor =
     tone === 'tag' ? COLORS.tag : tone === 'accent' ? COLORS.accent : COLORS.link;
+
   return (
-    <AbsoluteFill style={{ display: 'grid', placeItems: 'center', opacity }}>
-      <div style={{ transform: `scale(${scale})`, textAlign: 'center', maxWidth: 1400, padding: '0 120px' }}>
+    <AbsoluteFill style={{ opacity }}>
+      <div style={{ position: 'absolute', inset: 0, padding: '90px 140px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
         <div
           style={{
             fontFamily: FONTS.mono,
@@ -490,14 +807,218 @@ function RecapCard({ eyebrow, copy, tone, duration }: { eyebrow: string; copy: s
             letterSpacing: 5,
             color: toneColor,
             textTransform: 'uppercase',
-            marginBottom: 22,
+            marginBottom: 16,
           }}
         >
           {eyebrow}
         </div>
-        <SlowType text={copy} cps={32} size={64} font={FONTS.serif} letterSpacing={-1.5} align="center" />
+        <SlowType text={copy} cps={26} size={56} font={FONTS.serif} letterSpacing={-1.5} />
+        <div
+          style={{
+            marginTop: 44,
+            transform: `scale(${visualScale})`,
+            transformOrigin: 'left center',
+          }}
+        >
+          {visual === 'safe-write' && <VisSafeWrite />}
+          {visual === 'dialog' && <VisDialog />}
+          {visual === 'paths' && <VisPaths />}
+          {visual === 'counts' && <VisCounts frame={frame} />}
+          {visual === 'carbon' && <VisCarbon />}
+        </div>
       </div>
     </AbsoluteFill>
+  );
+}
+
+// ---- Recap UI sketches ----------------------------------------------------
+
+function VisSafeWrite() {
+  const frame = useCurrentFrame();
+  const strike = interpolate(frame, [30, 70], [0, 100], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+  return (
+    <div style={{ display: 'flex', gap: 28, alignItems: 'center' }}>
+      <div
+        style={{
+          background: COLORS.bgElevated,
+          border: `1px solid ${COLORS.border}`,
+          borderRadius: 12,
+          padding: '18px 22px',
+          width: 460,
+          position: 'relative',
+        }}
+      >
+        <div style={{ fontFamily: FONTS.mono, fontSize: 11, color: '#ef4444', letterSpacing: 3, textTransform: 'uppercase' }}>
+          Before
+        </div>
+        <div style={{ marginTop: 8, fontFamily: FONTS.mono, fontSize: 15, color: COLORS.text }}>
+          iCloud writes → stale buffer → save clobbers
+          <div
+            style={{
+              position: 'absolute',
+              left: 22,
+              right: 22,
+              top: 56,
+              height: 2,
+              width: `calc(${strike}% - 44px)`,
+              background: '#ef4444',
+              opacity: 0.85,
+            }}
+          />
+        </div>
+      </div>
+      <div style={{ fontFamily: FONTS.mono, fontSize: 32, color: COLORS.accent }}>→</div>
+      <div
+        style={{
+          background: COLORS.bgElevated,
+          border: `1px solid ${COLORS.tag}`,
+          borderRadius: 12,
+          padding: '18px 22px',
+          width: 460,
+        }}
+      >
+        <div style={{ fontFamily: FONTS.mono, fontSize: 11, color: COLORS.tag, letterSpacing: 3, textTransform: 'uppercase' }}>
+          After
+        </div>
+        <div style={{ marginTop: 8, fontFamily: FONTS.mono, fontSize: 15, color: COLORS.text }}>
+          Watcher reloads + keeps unsaved local edits
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function VisDialog() {
+  const frame = useCurrentFrame();
+  const pop = interpolate(frame, [20, 50], [0.9, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+  return (
+    <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+      <div
+        style={{
+          width: 520,
+          background: COLORS.bgElevated,
+          border: `1px solid ${COLORS.border}`,
+          borderRadius: 14,
+          padding: '22px 24px',
+          transform: `scale(${pop})`,
+          boxShadow: '0 30px 80px rgba(0,0,0,0.5)',
+        }}
+      >
+        <div style={{ fontFamily: FONTS.sans, fontSize: 17, fontWeight: 600, color: COLORS.text }}>
+          Move "2025" to trash?
+        </div>
+        <div style={{ fontFamily: FONTS.sans, fontSize: 13, color: COLORS.textMuted, marginTop: 4 }}>
+          The folder and everything inside it will go to the system trash.
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 22 }}>
+          <span style={{ padding: '8px 14px', fontFamily: FONTS.sans, fontSize: 13, color: COLORS.textMuted }}>
+            Cancel
+          </span>
+          <span
+            style={{
+              padding: '8px 14px',
+              fontFamily: FONTS.sans,
+              fontSize: 13,
+              background: '#ef4444',
+              color: '#fff',
+              borderRadius: 8,
+            }}
+          >
+            Move to Trash
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function VisPaths() {
+  return (
+    <div style={{ fontFamily: FONTS.mono, fontSize: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div
+        style={{
+          background: COLORS.bgElevated,
+          border: `1px solid ${COLORS.border}`,
+          borderRadius: 10,
+          padding: '14px 18px',
+          color: COLORS.text,
+        }}
+      >
+        <span style={{ color: COLORS.textMuted, marginRight: 14 }}>asked for:</span>
+        vault:///blog/2023-year-in-review/header.png
+      </div>
+      <div
+        style={{
+          background: COLORS.bgElevated,
+          border: `1px solid ${COLORS.accent}`,
+          borderRadius: 10,
+          padding: '14px 18px',
+          color: COLORS.text,
+        }}
+      >
+        <span style={{ color: COLORS.accentInk, marginRight: 14 }}>found at:</span>
+        blogs/images/2023-year-in-review/header.png
+      </div>
+    </div>
+  );
+}
+
+function VisCounts({ frame }: { frame: number }) {
+  const words = Math.floor(interpolate(frame, [0, 90], [0, 412], { extrapolateRight: 'clamp' }));
+  const open = Math.max(0, 4 - Math.floor(interpolate(frame, [0, 90], [0, 4], { extrapolateRight: 'clamp' })));
+  const done = 8 + (4 - open);
+  return (
+    <div style={{ display: 'flex', gap: 16 }}>
+      <CountChip label="words" value={words.toLocaleString()} tone="text" />
+      <CountChip label="open" value={String(open)} tone={open > 0 ? 'text' : 'muted'} />
+      <CountChip label="done" value={String(done)} tone="muted" />
+      <CountChip label="streak" value="12 days" tone="link" icon="🔥" />
+    </div>
+  );
+}
+
+function CountChip({ label, value, tone, icon }: { label: string; value: string; tone: 'text' | 'muted' | 'link'; icon?: string }) {
+  const color = tone === 'link' ? COLORS.link : tone === 'muted' ? COLORS.textMuted : COLORS.text;
+  return (
+    <div
+      style={{
+        padding: '14px 22px',
+        background: COLORS.bgElevated,
+        border: `1px solid ${COLORS.border}`,
+        borderRadius: 14,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 4,
+        minWidth: 120,
+      }}
+    >
+      <div style={{ fontFamily: FONTS.mono, fontSize: 11, color: COLORS.textSubtle, letterSpacing: 2, textTransform: 'uppercase' }}>
+        {icon ? `${icon} ${label}` : label}
+      </div>
+      <div style={{ fontFamily: FONTS.mono, fontSize: 26, color, fontVariantNumeric: 'tabular-nums' }}>
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function VisCarbon() {
+  return (
+    <div style={{ display: 'flex', gap: 14 }}>
+      {['#0a0a0c', '#121214', '#1a1a1d', COLORS.accent, COLORS.link, COLORS.tag].map((c, i) => (
+        <div
+          key={i}
+          style={{
+            width: c === COLORS.accent ? 140 : 96,
+            height: c === COLORS.accent ? 140 : 96,
+            background: c,
+            borderRadius: 16,
+            border: `1px solid ${COLORS.border}`,
+            boxShadow: c === COLORS.accent ? `0 14px 40px ${c}40` : undefined,
+          }}
+        />
+      ))}
+    </div>
   );
 }
 
