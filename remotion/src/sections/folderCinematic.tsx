@@ -195,7 +195,7 @@ export function FolderCinematic({ durationFrames }: { durationFrames: number }) 
           }}
         >
           <SlowType
-            text="Files stay flat on disk."
+            text="Your notes stay simple."
             delay={210}
             cps={20}
             size={48}
@@ -235,7 +235,7 @@ export function FolderCinematic({ durationFrames }: { durationFrames: number }) 
           }}
         >
           <SlowType
-            text="The sidebar groups them for you."
+            text="We sort them by month for you."
             delay={285}
             cps={22}
             size={42}

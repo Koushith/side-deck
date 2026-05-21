@@ -23,20 +23,17 @@ import beatsData from '../public/captures/beats.json';
 const FPS = 30;
 const F = (s: number) => Math.round(s * FPS);
 
-// Per-section frame budgets (~120s total cinematic cut)
+// Per-section frame budgets (~75s pure cinematic cut — no live capture).
 const SLATE = F(4.5);          // intro slate
 const FOLDER = F(13);          // folder flat creation centerpiece
 const MERMAID = F(10);
-const VIEWER = F(12);          // now includes mock photo + PDF preview frames
-const TODOS = F(13);           // now includes animated checklist
-const LIVE_PAD = F(2.6);       // proper "see it in action" beat
-const CAPTURE_MS = beatsData[beatsData.length - 1]?.endMs ?? 22000;
-const CAPTURE = Math.round((CAPTURE_MS / 1000) * FPS);
+const VIEWER = F(12);          // mock photo + PDF preview frames
+const TODOS = F(13);           // animated checklist
 const RECAP = F(15);           // five fix beats with UI mocks
 const OUTRO = F(7);
 
 export function totalFramesCinematic(): number {
-  return SLATE + FOLDER + MERMAID + VIEWER + TODOS + LIVE_PAD + CAPTURE + RECAP + OUTRO;
+  return SLATE + FOLDER + MERMAID + VIEWER + TODOS + RECAP + OUTRO;
 }
 
 // Toggle music via env: `WITH_AUDIO=1 npm run render-cinematic`
@@ -95,7 +92,7 @@ function Slate() {
               opacity: interpolate(frame, [50, 80], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }),
             }}
           >
-            v0.3.0 · what shipped
+            v0.3.0 · what's new
           </div>
         </div>
       </div>
@@ -130,10 +127,10 @@ function MermaidScene() {
                 opacity: interpolate(frame, [0, 12], [0, 1], { extrapolateRight: 'clamp' }),
               }}
             >
-              Mermaid diagrams
+              Flowcharts
             </div>
             <SlowType
-              text="Write a graph. See a graph."
+              text="Type a flowchart. See it drawn."
               delay={10}
               cps={20}
               size={72}
@@ -194,15 +191,15 @@ function ViewerScene() {
         <HaloBackdrop />
         <div style={{ position: 'absolute', inset: 0, padding: '100px 140px 80px 140px' }}>
           <div style={{ fontFamily: FONTS.mono, fontSize: 14, letterSpacing: 4, color: COLORS.accent, textTransform: 'uppercase' }}>
-            Image + PDF viewer
+            Photos & PDFs
           </div>
           <div style={{ marginTop: 14 }}>
             <SlowType
-              text="Click an attachment. It opens in a tab."
+              text="Open them right in the app."
               cps={22}
-              size={60}
+              size={64}
               font={FONTS.serif}
-              letterSpacing={-1.5}
+              letterSpacing={-1.6}
             />
           </div>
 
@@ -426,13 +423,13 @@ function TodosScene() {
         <KenBurns from={1.04} to={1} duration={TODOS}>
           <div style={{ position: 'absolute', inset: 0, padding: '90px 140px 80px 140px' }}>
             <div style={{ fontFamily: FONTS.mono, fontSize: 14, letterSpacing: 4, color: COLORS.accent, textTransform: 'uppercase' }}>
-              Todo notes
+              Daily checklists
             </div>
             <div style={{ marginTop: 14 }}>
               <SlowType
                 text="Tick things off. Watch the bar fill."
                 cps={20}
-                size={56}
+                size={60}
                 font={FONTS.serif}
                 letterSpacing={-1.5}
               />
@@ -747,19 +744,17 @@ function BeatLabel({ id, dur, localFrame }: { id: string; dur: number; localFram
 }
 
 function RecapMontage() {
-  // Five fix beats — each card pairs copy with a tiny UI sketch so we're showing
-  // not just telling.
-  const beats: {
+  // Each beat is a literal Before / After pair so the value reads in 2 seconds.
+  // Copy is plain English — no jargon ("modal", "resolve", "watcher", etc.).
+  const beats: Array<{
     eyebrow: string;
-    copy: string;
-    tone?: 'accent' | 'tag' | 'link';
-    visual: 'safe-write' | 'dialog' | 'paths' | 'counts' | 'carbon';
-  }[] = [
-    { eyebrow: 'No silent overwrites', copy: 'External edits stay safe.', tone: 'tag', visual: 'safe-write' },
-    { eyebrow: 'In-app dialogs', copy: 'No more native modals.', visual: 'dialog' },
-    { eyebrow: 'Smart image paths', copy: 'Publish-site URLs resolve locally.', visual: 'paths' },
-    { eyebrow: 'Live everything', copy: 'Words, tasks, streaks — all live.', visual: 'counts' },
-    { eyebrow: 'Carbon · dark', copy: 'The new default theme.', tone: 'accent', visual: 'carbon' },
+    visual: 'safety' | 'dialog' | 'image' | 'counts' | 'theme';
+  }> = [
+    { eyebrow: 'Your notes stay safe', visual: 'safety' },
+    { eyebrow: 'Friendlier popups', visual: 'dialog' },
+    { eyebrow: 'Pictures just show up', visual: 'image' },
+    { eyebrow: 'Counts update live', visual: 'counts' },
+    { eyebrow: 'Easy on the eyes', visual: 'theme' },
   ];
   const each = Math.floor(RECAP / beats.length);
   return (
@@ -768,7 +763,7 @@ function RecapMontage() {
         <HaloBackdrop />
         {beats.map((b, i) => (
           <Sequence key={i} from={i * each} durationInFrames={each}>
-            <RecapCard {...b} duration={each} />
+            <BeforeAfterCard {...b} duration={each} />
           </Sequence>
         ))}
       </div>
@@ -776,248 +771,334 @@ function RecapMontage() {
   );
 }
 
-function RecapCard({
+function BeforeAfterCard({
   eyebrow,
-  copy,
-  tone,
   visual,
   duration,
 }: {
   eyebrow: string;
-  copy: string;
-  tone?: 'accent' | 'tag' | 'link';
-  visual: 'safe-write' | 'dialog' | 'paths' | 'counts' | 'carbon';
+  visual: 'safety' | 'dialog' | 'image' | 'counts' | 'theme';
   duration: number;
 }) {
   const frame = useCurrentFrame();
-  const inOp = interpolate(frame, [0, 10], [0, 1], { extrapolateRight: 'clamp' });
-  const outOp = interpolate(frame, [duration - 10, duration], [1, 0], { extrapolateLeft: 'clamp' });
+  const inOp = interpolate(frame, [0, 12], [0, 1], { extrapolateRight: 'clamp' });
+  const outOp = interpolate(frame, [duration - 14, duration], [1, 0], { extrapolateLeft: 'clamp' });
   const opacity = Math.min(inOp, outOp);
-  const visualScale = interpolate(frame, [0, duration], [0.96, 1.02], { extrapolateRight: 'clamp' });
-  const toneColor =
-    tone === 'tag' ? COLORS.tag : tone === 'accent' ? COLORS.accent : COLORS.link;
+  // "After" fades in slightly delayed so the eye lands on Before first.
+  const beforeOp = interpolate(frame, [4, 20], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+  const afterOp = interpolate(frame, [28, 56], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+  const arrowOp = interpolate(frame, [22, 38], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
 
   return (
     <AbsoluteFill style={{ opacity }}>
-      <div style={{ position: 'absolute', inset: 0, padding: '90px 140px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+      <div style={{ position: 'absolute', inset: 0, padding: '90px 140px', display: 'flex', flexDirection: 'column' }}>
         <div
           style={{
             fontFamily: FONTS.mono,
-            fontSize: 16,
+            fontSize: 15,
             letterSpacing: 5,
-            color: toneColor,
+            color: COLORS.accent,
             textTransform: 'uppercase',
-            marginBottom: 16,
+            marginBottom: 14,
           }}
         >
           {eyebrow}
         </div>
-        <SlowType text={copy} cps={26} size={56} font={FONTS.serif} letterSpacing={-1.5} />
-        <div
-          style={{
-            marginTop: 44,
-            transform: `scale(${visualScale})`,
-            transformOrigin: 'left center',
-          }}
-        >
-          {visual === 'safe-write' && <VisSafeWrite />}
-          {visual === 'dialog' && <VisDialog />}
-          {visual === 'paths' && <VisPaths />}
-          {visual === 'counts' && <VisCounts frame={frame} />}
-          {visual === 'carbon' && <VisCarbon />}
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 36 }}>
+          <div style={{ opacity: beforeOp, flex: 1 }}>
+            <SidePanel kind="before" visual={visual} />
+          </div>
+          <div
+            style={{
+              fontFamily: FONTS.mono,
+              fontSize: 56,
+              color: COLORS.accent,
+              opacity: arrowOp,
+              flexShrink: 0,
+            }}
+          >
+            →
+          </div>
+          <div style={{ opacity: afterOp, flex: 1 }}>
+            <SidePanel kind="after" visual={visual} />
+          </div>
         </div>
       </div>
     </AbsoluteFill>
   );
 }
 
-// ---- Recap UI sketches ----------------------------------------------------
-
-function VisSafeWrite() {
-  const frame = useCurrentFrame();
-  const strike = interpolate(frame, [30, 70], [0, 100], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
-  return (
-    <div style={{ display: 'flex', gap: 28, alignItems: 'center' }}>
-      <div
-        style={{
-          background: COLORS.bgElevated,
-          border: `1px solid ${COLORS.border}`,
-          borderRadius: 12,
-          padding: '18px 22px',
-          width: 460,
-          position: 'relative',
-        }}
-      >
-        <div style={{ fontFamily: FONTS.mono, fontSize: 11, color: '#ef4444', letterSpacing: 3, textTransform: 'uppercase' }}>
-          Before
-        </div>
-        <div style={{ marginTop: 8, fontFamily: FONTS.mono, fontSize: 15, color: COLORS.text }}>
-          iCloud writes → stale buffer → save clobbers
-          <div
-            style={{
-              position: 'absolute',
-              left: 22,
-              right: 22,
-              top: 56,
-              height: 2,
-              width: `calc(${strike}% - 44px)`,
-              background: '#ef4444',
-              opacity: 0.85,
-            }}
-          />
-        </div>
-      </div>
-      <div style={{ fontFamily: FONTS.mono, fontSize: 32, color: COLORS.accent }}>→</div>
-      <div
-        style={{
-          background: COLORS.bgElevated,
-          border: `1px solid ${COLORS.tag}`,
-          borderRadius: 12,
-          padding: '18px 22px',
-          width: 460,
-        }}
-      >
-        <div style={{ fontFamily: FONTS.mono, fontSize: 11, color: COLORS.tag, letterSpacing: 3, textTransform: 'uppercase' }}>
-          After
-        </div>
-        <div style={{ marginTop: 8, fontFamily: FONTS.mono, fontSize: 15, color: COLORS.text }}>
-          Watcher reloads + keeps unsaved local edits
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function VisDialog() {
-  const frame = useCurrentFrame();
-  const pop = interpolate(frame, [20, 50], [0.9, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
-  return (
-    <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
-      <div
-        style={{
-          width: 520,
-          background: COLORS.bgElevated,
-          border: `1px solid ${COLORS.border}`,
-          borderRadius: 14,
-          padding: '22px 24px',
-          transform: `scale(${pop})`,
-          boxShadow: '0 30px 80px rgba(0,0,0,0.5)',
-        }}
-      >
-        <div style={{ fontFamily: FONTS.sans, fontSize: 17, fontWeight: 600, color: COLORS.text }}>
-          Move "2025" to trash?
-        </div>
-        <div style={{ fontFamily: FONTS.sans, fontSize: 13, color: COLORS.textMuted, marginTop: 4 }}>
-          The folder and everything inside it will go to the system trash.
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 22 }}>
-          <span style={{ padding: '8px 14px', fontFamily: FONTS.sans, fontSize: 13, color: COLORS.textMuted }}>
-            Cancel
-          </span>
-          <span
-            style={{
-              padding: '8px 14px',
-              fontFamily: FONTS.sans,
-              fontSize: 13,
-              background: '#ef4444',
-              color: '#fff',
-              borderRadius: 8,
-            }}
-          >
-            Move to Trash
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function VisPaths() {
-  return (
-    <div style={{ fontFamily: FONTS.mono, fontSize: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div
-        style={{
-          background: COLORS.bgElevated,
-          border: `1px solid ${COLORS.border}`,
-          borderRadius: 10,
-          padding: '14px 18px',
-          color: COLORS.text,
-        }}
-      >
-        <span style={{ color: COLORS.textMuted, marginRight: 14 }}>asked for:</span>
-        vault:///blog/2023-year-in-review/header.png
-      </div>
-      <div
-        style={{
-          background: COLORS.bgElevated,
-          border: `1px solid ${COLORS.accent}`,
-          borderRadius: 10,
-          padding: '14px 18px',
-          color: COLORS.text,
-        }}
-      >
-        <span style={{ color: COLORS.accentInk, marginRight: 14 }}>found at:</span>
-        blogs/images/2023-year-in-review/header.png
-      </div>
-    </div>
-  );
-}
-
-function VisCounts({ frame }: { frame: number }) {
-  const words = Math.floor(interpolate(frame, [0, 90], [0, 412], { extrapolateRight: 'clamp' }));
-  const open = Math.max(0, 4 - Math.floor(interpolate(frame, [0, 90], [0, 4], { extrapolateRight: 'clamp' })));
-  const done = 8 + (4 - open);
-  return (
-    <div style={{ display: 'flex', gap: 16 }}>
-      <CountChip label="words" value={words.toLocaleString()} tone="text" />
-      <CountChip label="open" value={String(open)} tone={open > 0 ? 'text' : 'muted'} />
-      <CountChip label="done" value={String(done)} tone="muted" />
-      <CountChip label="streak" value="12 days" tone="link" icon="🔥" />
-    </div>
-  );
-}
-
-function CountChip({ label, value, tone, icon }: { label: string; value: string; tone: 'text' | 'muted' | 'link'; icon?: string }) {
-  const color = tone === 'link' ? COLORS.link : tone === 'muted' ? COLORS.textMuted : COLORS.text;
+function SidePanel({
+  kind,
+  visual,
+}: {
+  kind: 'before' | 'after';
+  visual: 'safety' | 'dialog' | 'image' | 'counts' | 'theme';
+}) {
+  const label = kind === 'before' ? 'Before' : 'After';
+  const labelColor = kind === 'before' ? '#ef4444' : COLORS.tag;
+  const borderColor = kind === 'before' ? `${COLORS.border}` : COLORS.tag;
   return (
     <div
       style={{
-        padding: '14px 22px',
         background: COLORS.bgElevated,
-        border: `1px solid ${COLORS.border}`,
-        borderRadius: 14,
+        border: `1px solid ${borderColor}`,
+        borderRadius: 16,
+        padding: '24px 26px',
+        minHeight: 280,
         display: 'flex',
         flexDirection: 'column',
-        gap: 4,
-        minWidth: 120,
       }}
     >
-      <div style={{ fontFamily: FONTS.mono, fontSize: 11, color: COLORS.textSubtle, letterSpacing: 2, textTransform: 'uppercase' }}>
-        {icon ? `${icon} ${label}` : label}
+      <div style={{ fontFamily: FONTS.mono, fontSize: 12, letterSpacing: 3, color: labelColor, textTransform: 'uppercase', marginBottom: 18 }}>
+        {label}
       </div>
-      <div style={{ fontFamily: FONTS.mono, fontSize: 26, color, fontVariantNumeric: 'tabular-nums' }}>
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
+        {visual === 'safety' && (kind === 'before' ? <SafetyBefore /> : <SafetyAfter />)}
+        {visual === 'dialog' && (kind === 'before' ? <DialogBefore /> : <DialogAfter />)}
+        {visual === 'image' && (kind === 'before' ? <ImageBefore /> : <ImageAfter />)}
+        {visual === 'counts' && (kind === 'before' ? <CountsBefore /> : <CountsAfter />)}
+        {visual === 'theme' && (kind === 'before' ? <ThemeBefore /> : <ThemeAfter />)}
+      </div>
+    </div>
+  );
+}
+
+// ---- Before/After sketches (plain English only) ---------------------------
+
+function SafetyBefore() {
+  return (
+    <div style={{ fontFamily: FONTS.serif, fontSize: 22, color: COLORS.text, lineHeight: 1.5 }}>
+      You edit a note on your phone.
+      <br />
+      Open it on Mac — <span style={{ color: '#ef4444' }}>your edits are gone.</span>
+    </div>
+  );
+}
+function SafetyAfter() {
+  return (
+    <div style={{ fontFamily: FONTS.serif, fontSize: 22, color: COLORS.text, lineHeight: 1.5 }}>
+      You edit a note on your phone.
+      <br />
+      Open it on Mac — <span style={{ color: COLORS.tag }}>everything's there.</span>
+    </div>
+  );
+}
+
+function DialogBefore() {
+  // Faux Chromium system confirm
+  return (
+    <div
+      style={{
+        width: '100%',
+        background: '#3a3a3c',
+        border: '1px solid #555',
+        borderRadius: 8,
+        padding: '18px 20px',
+        color: '#fafafa',
+        fontFamily: '-apple-system, system-ui, sans-serif',
+      }}
+    >
+      <div style={{ fontSize: 13, color: '#aaa', marginBottom: 8 }}>localhost:5173 says</div>
+      <div style={{ fontSize: 15, marginBottom: 18 }}>Are you sure you want to delete?</div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+        <span style={{ padding: '6px 14px', background: '#5a5a5c', borderRadius: 4, fontSize: 13 }}>Cancel</span>
+        <span style={{ padding: '6px 14px', background: '#0a84ff', borderRadius: 4, fontSize: 13 }}>OK</span>
+      </div>
+    </div>
+  );
+}
+function DialogAfter() {
+  return (
+    <div
+      style={{
+        width: '100%',
+        background: COLORS.bgElevated,
+        border: `1px solid ${COLORS.border}`,
+        borderRadius: 12,
+        padding: '20px 22px',
+        boxShadow: '0 20px 50px rgba(0,0,0,0.4)',
+      }}
+    >
+      <div style={{ fontFamily: FONTS.sans, fontSize: 16, fontWeight: 600, color: COLORS.text }}>Move "2025" to trash?</div>
+      <div style={{ fontFamily: FONTS.sans, fontSize: 13, color: COLORS.textMuted, marginTop: 4 }}>
+        You can restore it from the system trash.
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 22 }}>
+        <span style={{ padding: '8px 14px', fontFamily: FONTS.sans, fontSize: 13, color: COLORS.textMuted }}>Cancel</span>
+        <span style={{ padding: '8px 14px', fontFamily: FONTS.sans, fontSize: 13, background: '#ef4444', color: '#fff', borderRadius: 8 }}>
+          Move to Trash
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function ImageBefore() {
+  return (
+    <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div
+        style={{
+          aspectRatio: '16 / 9',
+          background: '#1a1a1d',
+          border: `1px dashed ${COLORS.border}`,
+          borderRadius: 8,
+          display: 'grid',
+          placeItems: 'center',
+          color: '#ef4444',
+          fontFamily: FONTS.mono,
+          fontSize: 18,
+        }}
+      >
+        🖼 image not found
+      </div>
+      <div style={{ fontFamily: FONTS.mono, fontSize: 13, color: COLORS.textSubtle }}>blog/cover.png</div>
+    </div>
+  );
+}
+function ImageAfter() {
+  return (
+    <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div
+        style={{
+          aspectRatio: '16 / 9',
+          borderRadius: 8,
+          background: `
+            radial-gradient(circle at 30% 30%, #f5d0a9 0px, transparent 220px),
+            radial-gradient(circle at 70% 60%, ${COLORS.accent} 0px, transparent 240px),
+            linear-gradient(135deg, #2c2c30 0%, #1a1a1d 100%)
+          `,
+          border: `1px solid ${COLORS.tag}`,
+        }}
+      />
+      <div style={{ fontFamily: FONTS.mono, fontSize: 13, color: COLORS.tag }}>blog/cover.png</div>
+    </div>
+  );
+}
+
+function CountsBefore() {
+  return (
+    <div style={{ display: 'flex', gap: 10 }}>
+      <CountTile label="words" value="0" muted />
+      <CountTile label="open" value="0" muted />
+      <CountTile label="done" value="0" muted />
+    </div>
+  );
+}
+function CountsAfter() {
+  const frame = useCurrentFrame();
+  const words = Math.floor(interpolate(frame - 28, [0, 60], [0, 412], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }));
+  const open = Math.max(0, 4 - Math.floor(interpolate(frame - 28, [0, 60], [0, 4], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })));
+  const done = 8 + (4 - open);
+  return (
+    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+      <CountTile label="words" value={words.toLocaleString()} />
+      <CountTile label="open" value={String(open)} />
+      <CountTile label="done" value={String(done)} accent />
+      <CountTile label="streak" value="12 days" link />
+    </div>
+  );
+}
+
+function CountTile({
+  label,
+  value,
+  muted,
+  accent,
+  link,
+}: {
+  label: string;
+  value: string;
+  muted?: boolean;
+  accent?: boolean;
+  link?: boolean;
+}) {
+  const color = link ? COLORS.link : accent ? COLORS.accentInk : muted ? COLORS.textSubtle : COLORS.text;
+  return (
+    <div
+      style={{
+        padding: '12px 16px',
+        background: COLORS.bg,
+        border: `1px solid ${COLORS.border}`,
+        borderRadius: 10,
+        minWidth: 96,
+      }}
+    >
+      <div style={{ fontFamily: FONTS.mono, fontSize: 10, color: COLORS.textSubtle, letterSpacing: 2, textTransform: 'uppercase' }}>
+        {label}
+      </div>
+      <div style={{ marginTop: 2, fontFamily: FONTS.mono, fontSize: 22, color, fontVariantNumeric: 'tabular-nums' }}>
         {value}
       </div>
     </div>
   );
 }
 
-function VisCarbon() {
+function ThemeBefore() {
+  // Light "paper" sample window
   return (
-    <div style={{ display: 'flex', gap: 14 }}>
-      {['#0a0a0c', '#121214', '#1a1a1d', COLORS.accent, COLORS.link, COLORS.tag].map((c, i) => (
-        <div
-          key={i}
-          style={{
-            width: c === COLORS.accent ? 140 : 96,
-            height: c === COLORS.accent ? 140 : 96,
-            background: c,
-            borderRadius: 16,
-            border: `1px solid ${COLORS.border}`,
-            boxShadow: c === COLORS.accent ? `0 14px 40px ${c}40` : undefined,
-          }}
-        />
-      ))}
+    <div
+      style={{
+        width: '100%',
+        background: '#f7f3ec',
+        color: '#1f1d1a',
+        borderRadius: 10,
+        padding: '20px 22px',
+        fontFamily: FONTS.serif,
+      }}
+    >
+      <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 10 }}>Daily journal</div>
+      <div style={{ height: 4, background: '#e0d9c8', borderRadius: 2, marginBottom: 8 }} />
+      <div style={{ height: 4, background: '#e0d9c8', borderRadius: 2, marginBottom: 8, width: '84%' }} />
+      <div style={{ height: 4, background: '#e0d9c8', borderRadius: 2, marginBottom: 8, width: '64%' }} />
+      <div
+        style={{
+          marginTop: 14,
+          padding: '8px 12px',
+          background: '#c4623a',
+          color: '#fff',
+          borderRadius: 6,
+          fontFamily: FONTS.mono,
+          fontSize: 12,
+          display: 'inline-block',
+        }}
+      >
+        accent
+      </div>
+    </div>
+  );
+}
+function ThemeAfter() {
+  return (
+    <div
+      style={{
+        width: '100%',
+        background: '#0a0a0c',
+        color: '#fafafa',
+        border: `1px solid ${COLORS.border}`,
+        borderRadius: 10,
+        padding: '20px 22px',
+        fontFamily: FONTS.serif,
+      }}
+    >
+      <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 10 }}>Daily journal</div>
+      <div style={{ height: 4, background: COLORS.border, borderRadius: 2, marginBottom: 8 }} />
+      <div style={{ height: 4, background: COLORS.border, borderRadius: 2, marginBottom: 8, width: '84%' }} />
+      <div style={{ height: 4, background: COLORS.border, borderRadius: 2, marginBottom: 8, width: '64%' }} />
+      <div
+        style={{
+          marginTop: 14,
+          padding: '8px 12px',
+          background: COLORS.accent,
+          color: COLORS.bg,
+          borderRadius: 6,
+          fontFamily: FONTS.mono,
+          fontSize: 12,
+          display: 'inline-block',
+        }}
+      >
+        accent
+      </div>
     </div>
   );
 }
@@ -1050,7 +1131,7 @@ function Outro() {
                 opacity: interpolate(frame, [0, 18], [0, 1], { extrapolateRight: 'clamp' }),
               }}
             >
-              Update or grab
+              Free download
             </div>
             <SlowType
               text="sidenotes.me"
@@ -1072,11 +1153,11 @@ function Outro() {
                 opacity: interpolate(frame, [70, 110], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }),
               }}
             >
-              <span>Plain markdown</span>
+              <span>No sign-up</span>
               <span>·</span>
-              <span>No accounts</span>
+              <span>Runs offline</span>
               <span>·</span>
-              <span>Lives on your Mac</span>
+              <span>Just files on your Mac</span>
             </div>
           </div>
         </KenBurns>
@@ -1144,8 +1225,6 @@ export function V030Cinematic() {
       <Sequence from={push(MERMAID)} durationInFrames={MERMAID}><MermaidScene /></Sequence>
       <Sequence from={push(VIEWER)} durationInFrames={VIEWER}><ViewerScene /></Sequence>
       <Sequence from={push(TODOS)} durationInFrames={TODOS}><TodosScene /></Sequence>
-      <Sequence from={push(LIVE_PAD)} durationInFrames={LIVE_PAD}><LivePreRoll /></Sequence>
-      <Sequence from={push(CAPTURE)} durationInFrames={CAPTURE}><LiveCapture /></Sequence>
       <Sequence from={push(RECAP)} durationInFrames={RECAP}><RecapMontage /></Sequence>
       <Sequence from={push(OUTRO)} durationInFrames={OUTRO}><Outro /></Sequence>
     </AbsoluteFill>
