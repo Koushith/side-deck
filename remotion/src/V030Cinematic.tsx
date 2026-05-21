@@ -23,14 +23,14 @@ import beatsData from '../public/captures/beats.json';
 const FPS = 30;
 const F = (s: number) => Math.round(s * FPS);
 
-// Per-section frame budgets (~75s pure cinematic cut — no live capture).
+// Per-section frame budgets (~79s pure cinematic cut — no live capture).
 const SLATE = F(4.5);          // intro slate
-const FOLDER = F(13);          // folder flat creation centerpiece
+const FOLDER = F(11);          // folder flat creation centerpiece (tightened pacing)
 const MERMAID = F(10);
-const VIEWER = F(12);          // mock photo + PDF preview frames
+const VIEWER = F(13);          // mock photo + PDF + staggered format chips
 const TODOS = F(13);           // animated checklist
-const RECAP = F(15);           // five fix beats with UI mocks
-const OUTRO = F(7);
+const RECAP = F(20);           // five before/after cards — 4s each so they breathe
+const OUTRO = F(9);            // richer end card with privacy / platforms / byline
 
 export function totalFramesCinematic(): number {
   return SLATE + FOLDER + MERMAID + VIEWER + TODOS + RECAP + OUTRO;
@@ -209,32 +209,56 @@ function ViewerScene() {
             <MockPdfFrame delay={110} />
           </div>
 
-          {/* Supporting evidence: extension chips fade in last */}
-          <div
-            style={{
-              marginTop: 48,
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: 10,
-              opacity: interpolate(frame, [220, 260], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }),
-            }}
-          >
-            {['.png', '.jpg', '.gif', '.webp', '.svg', '.bmp', '.avif', '.pdf'].map((ext) => (
-              <span
-                key={ext}
-                style={{
-                  padding: '10px 18px',
-                  borderRadius: 999,
-                  border: `1px solid ${COLORS.border}`,
-                  background: COLORS.bgElevated,
-                  fontFamily: FONTS.mono,
-                  fontSize: 18,
-                  color: COLORS.textMuted,
-                }}
-              >
-                {ext}
-              </span>
-            ))}
+          {/* Supported formats — animate one by one as a typed list */}
+          <div style={{ marginTop: 44 }}>
+            <div
+              style={{
+                fontFamily: FONTS.mono,
+                fontSize: 13,
+                letterSpacing: 4,
+                color: COLORS.accent,
+                textTransform: 'uppercase',
+                marginBottom: 16,
+                opacity: interpolate(frame, [200, 220], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }),
+              }}
+            >
+              Supported formats
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+              {['.png', '.jpg', '.gif', '.webp', '.svg', '.bmp', '.avif', '.pdf'].map((ext, i) => {
+                const start = 220 + i * 14;
+                const op = interpolate(frame, [start, start + 12], [0, 1], {
+                  extrapolateLeft: 'clamp',
+                  extrapolateRight: 'clamp',
+                });
+                const y = interpolate(frame, [start, start + 16], [10, 0], {
+                  extrapolateLeft: 'clamp',
+                  extrapolateRight: 'clamp',
+                });
+                const scale = interpolate(frame, [start, start + 12], [0.9, 1], {
+                  extrapolateLeft: 'clamp',
+                  extrapolateRight: 'clamp',
+                });
+                return (
+                  <span
+                    key={ext}
+                    style={{
+                      padding: '12px 20px',
+                      borderRadius: 999,
+                      border: `1px solid ${ext === '.pdf' ? COLORS.accent : COLORS.border}`,
+                      background: ext === '.pdf' ? COLORS.accentSubtle : COLORS.bgElevated,
+                      fontFamily: FONTS.mono,
+                      fontSize: 20,
+                      color: ext === '.pdf' ? COLORS.accentInk : COLORS.text,
+                      opacity: op,
+                      transform: `translateY(${y}px) scale(${scale})`,
+                    }}
+                  >
+                    {ext}
+                  </span>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
@@ -781,13 +805,14 @@ function BeforeAfterCard({
   duration: number;
 }) {
   const frame = useCurrentFrame();
-  const inOp = interpolate(frame, [0, 12], [0, 1], { extrapolateRight: 'clamp' });
-  const outOp = interpolate(frame, [duration - 14, duration], [1, 0], { extrapolateLeft: 'clamp' });
+  const inOp = interpolate(frame, [0, 14], [0, 1], { extrapolateRight: 'clamp' });
+  const outOp = interpolate(frame, [duration - 18, duration], [1, 0], { extrapolateLeft: 'clamp' });
   const opacity = Math.min(inOp, outOp);
-  // "After" fades in slightly delayed so the eye lands on Before first.
-  const beforeOp = interpolate(frame, [4, 20], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
-  const afterOp = interpolate(frame, [28, 56], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
-  const arrowOp = interpolate(frame, [22, 38], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+  // "After" fades in clearly after Before so the eye lands on Before, reads it,
+  // then registers the arrow + After.
+  const beforeOp = interpolate(frame, [6, 26], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+  const arrowOp = interpolate(frame, [38, 60], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
+  const afterOp = interpolate(frame, [54, 84], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
 
   return (
     <AbsoluteFill style={{ opacity }}>
@@ -1131,7 +1156,7 @@ function Outro() {
                 opacity: interpolate(frame, [0, 18], [0, 1], { extrapolateRight: 'clamp' }),
               }}
             >
-              Free download
+              Quietly handcrafted
             </div>
             <SlowType
               text="sidenotes.me"
@@ -1142,27 +1167,72 @@ function Outro() {
               letterSpacing={-2.5}
               color={COLORS.accentInk}
             />
+            {/* Three pill rows: privacy · platforms · byline */}
             <div
               style={{
-                marginTop: 22,
+                marginTop: 18,
                 display: 'flex',
-                gap: 22,
-                fontFamily: FONTS.mono,
-                fontSize: 18,
-                color: COLORS.textMuted,
-                opacity: interpolate(frame, [70, 110], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }),
+                gap: 12,
+                flexWrap: 'wrap',
+                justifyContent: 'center',
+                opacity: interpolate(frame, [80, 120], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }),
               }}
             >
-              <span>No sign-up</span>
-              <span>·</span>
-              <span>Runs offline</span>
-              <span>·</span>
-              <span>Just files on your Mac</span>
+              <OutroPill icon="🔒" label="Privacy first" tone="accent" />
+              <OutroPill icon="🍎" label="Mac" />
+              <OutroPill icon="◧" label="Windows" />
+              <OutroPill icon="🐧" label="Linux" />
+            </div>
+            <div
+              style={{
+                marginTop: 14,
+                fontFamily: FONTS.serif,
+                fontSize: 22,
+                color: COLORS.textMuted,
+                opacity: interpolate(frame, [130, 170], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }),
+              }}
+            >
+              Built with care by <span style={{ color: COLORS.text, fontStyle: 'italic' }}>@koushith</span>
+            </div>
+            <div
+              style={{
+                marginTop: 4,
+                fontFamily: FONTS.mono,
+                fontSize: 13,
+                letterSpacing: 3,
+                color: COLORS.textSubtle,
+                textTransform: 'uppercase',
+                opacity: interpolate(frame, [180, 220], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }),
+              }}
+            >
+              Your notes never leave your device
             </div>
           </div>
         </KenBurns>
       </div>
     </SoftFade>
+  );
+}
+
+function OutroPill({ icon, label, tone }: { icon: string; label: string; tone?: 'accent' }) {
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '10px 18px',
+        borderRadius: 999,
+        border: `1px solid ${tone === 'accent' ? COLORS.accent : COLORS.border}`,
+        background: tone === 'accent' ? COLORS.accentSubtle : COLORS.bgElevated,
+        fontFamily: FONTS.mono,
+        fontSize: 16,
+        color: tone === 'accent' ? COLORS.accentInk : COLORS.text,
+      }}
+    >
+      <span style={{ fontSize: 18 }}>{icon}</span>
+      {label}
+    </span>
   );
 }
 

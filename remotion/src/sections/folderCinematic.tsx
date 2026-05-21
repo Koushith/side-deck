@@ -8,13 +8,12 @@ import { Camera, KenBurns, SlowType, HaloBackdrop, Reveal, SoftFade } from '../c
 export function FolderCinematic({ durationFrames }: { durationFrames: number }) {
   const frame = useCurrentFrame();
 
-  // Beats inside this section:
-  // 0-50:    one filename types out, camera locked very close (scale 3.0)
-  // 50-130:  camera pulls back to scale 1.6, more files materialize
-  // 130-200: pull to scale 1.0 — full Daily Notes folder visible
-  // 200-260: tag-line types: "Files stay flat on disk."
-  // 260-end: virtual Year/Month sidebar overlay drifts in from the right
-  //          + tag-line: "The sidebar groups them for you."
+  // Beats (frames). Total 330. Tightened from the original 390 — the dolly was dragging.
+  // 0-30:    one filename types out (camera locked very close at scale 3.0)
+  // 30-90:   camera pulls back to scale 1.4 — more files materialize
+  // 90-150:  pull to scale 1.0 — full Daily Notes folder visible
+  // 150-200: tag-line types: "Your notes stay simple."
+  // 200-end: virtual Year/Month sidebar drifts in + tag-line 2.
 
   // Synthesize the 12-file streak.
   const files = [
@@ -32,13 +31,13 @@ export function FolderCinematic({ durationFrames }: { durationFrames: number }) 
     '2026-05-22.md',
   ];
 
-  // Phase ramps
-  const cameraT = interpolate(frame, [0, 200], [0, 1], {
+  // Phase ramps — compressed timeline.
+  const cameraT = interpolate(frame, [0, 150], [0, 1], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
   });
   const scale = 3 - cameraT * 2; // 3.0 → 1.0
-  const sidebarT = interpolate(frame, [240, 320], [0, 1], {
+  const sidebarT = interpolate(frame, [200, 270], [0, 1], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
   });
@@ -69,7 +68,7 @@ export function FolderCinematic({ durationFrames }: { durationFrames: number }) 
               border: `2px solid ${COLORS.border}`,
               background: COLORS.bgElevated,
               boxShadow: `0 60px 120px rgba(0,0,0,0.5)`,
-              opacity: interpolate(frame, [80, 150], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }),
+              opacity: interpolate(frame, [60, 110], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }),
             }}
           >
             {/* Folder label */}
@@ -105,11 +104,11 @@ export function FolderCinematic({ durationFrames }: { durationFrames: number }) 
                 const isFirst = i === 0;
                 const opacity = isFirst
                   ? interpolate(frame, [0, 14], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
-                  : interpolate(frame, [40 + i * 6, 60 + i * 6], [0, 1], {
+                  : interpolate(frame, [30 + i * 4, 46 + i * 4], [0, 1], {
                       extrapolateLeft: 'clamp',
                       extrapolateRight: 'clamp',
                     });
-                const y = interpolate(frame, [40 + i * 6, 70 + i * 6], [12, 0], {
+                const y = interpolate(frame, [30 + i * 4, 54 + i * 4], [12, 0], {
                   extrapolateLeft: 'clamp',
                   extrapolateRight: 'clamp',
                 });
@@ -185,19 +184,19 @@ export function FolderCinematic({ durationFrames }: { durationFrames: number }) 
             bottom: 140,
             display: 'flex',
             justifyContent: 'center',
-            opacity: interpolate(frame, [205, 235], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }),
+            opacity: interpolate(frame, [155, 180], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }),
             // Fade tagline 1 out as tagline 2 fades in
-            ...(frame > 250
+            ...(frame > 200
               ? {
-                  opacity: interpolate(frame, [250, 280], [1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }),
+                  opacity: interpolate(frame, [200, 225], [1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }),
                 }
               : {}),
           }}
         >
           <SlowType
             text="Your notes stay simple."
-            delay={210}
-            cps={20}
+            delay={160}
+            cps={22}
             size={48}
             font={FONTS.serif}
             color={COLORS.text}
@@ -223,7 +222,7 @@ export function FolderCinematic({ durationFrames }: { durationFrames: number }) 
           <div style={{ fontFamily: FONTS.mono, fontSize: 12, letterSpacing: 3, color: COLORS.accent, textTransform: 'uppercase', marginBottom: 18 }}>
             Sidebar
           </div>
-          <SidebarTree frame={frame - 240} />
+          <SidebarTree frame={frame - 200} />
         </div>
 
         <div
@@ -231,13 +230,13 @@ export function FolderCinematic({ durationFrames }: { durationFrames: number }) 
             position: 'absolute',
             left: 80,
             bottom: 80,
-            opacity: interpolate(frame, [280, 320], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }),
+            opacity: interpolate(frame, [225, 260], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }),
           }}
         >
           <SlowType
             text="We sort them by month for you."
-            delay={285}
-            cps={22}
+            delay={230}
+            cps={24}
             size={42}
             font={FONTS.serif}
             color={COLORS.text}
