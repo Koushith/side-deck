@@ -7,3 +7,4 @@ release/
 .vite/
 .env
 .env.local
+/release/

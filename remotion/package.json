@@ -1,0 +1,28 @@
+{
+  "name": "sidenotes-remotion",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "remotion studio",
+    "render": "remotion render V030 ../release/v0.3.0.mp4 --codec h264 --concurrency 4",
+    "render-vertical": "remotion render V030Vertical ../release/v0.3.0-vertical.mp4 --codec h264",
+    "capture": "playwright test capture/capture.spec.ts --project=chromium",
+    "still": "remotion still V030 ../release/v0.3.0-frame.png --frame=0"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.460",
+    "@remotion/bundler": "4.0.460",
+    "@remotion/renderer": "4.0.460",
+    "remotion": "4.0.460",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0",
+    "@types/react": "^18.3.1",
+    "@types/react-dom": "^18.3.1",
+    "playwright": "^1.49.0",
+    "typescript": "^5.6.3"
+  }
+}
