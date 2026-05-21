@@ -23,17 +23,18 @@ import beatsData from '../public/captures/beats.json';
 const FPS = 30;
 const F = (s: number) => Math.round(s * FPS);
 
-// Per-section frame budgets (~79s pure cinematic cut — no live capture).
+// Per-section frame budgets (~93s pure cinematic cut — no live capture).
 const SLATE = F(4.5);          // intro slate
 const FOLDER = F(11);          // folder flat creation centerpiece (tightened pacing)
 const MERMAID = F(10);
 const VIEWER = F(13);          // mock photo + PDF + staggered format chips
 const TODOS = F(13);           // animated checklist
 const RECAP = F(20);           // five before/after cards — 4s each so they breathe
-const OUTRO = F(10);           // richer end card: S mark · headline · tagline · pills · K-monogram byline
+const CHANGELOG = F(14);       // TL;DR — 4 cut frames covering full release notes
+const OUTRO = F(9);            // privacy / platforms / byline
 
 export function totalFramesCinematic(): number {
-  return SLATE + FOLDER + MERMAID + VIEWER + TODOS + RECAP + OUTRO;
+  return SLATE + FOLDER + MERMAID + VIEWER + TODOS + RECAP + CHANGELOG + OUTRO;
 }
 
 // Toggle music via env: `WITH_AUDIO=1 npm run render-cinematic`
@@ -604,168 +605,9 @@ function CheckRow({
   );
 }
 
-/** Pre-roll into the live capture: full-screen "See it in action." card. */
-function LivePreRoll() {
-  const frame = useCurrentFrame();
-  return (
-    <SoftFade durationFrames={LIVE_PAD}>
-      <div style={{ position: 'relative', width: '100%', height: '100%', background: COLORS.bg }}>
-        <HaloBackdrop />
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 26,
-          }}
-        >
-          <div
-            style={{
-              fontFamily: FONTS.mono,
-              fontSize: 17,
-              letterSpacing: 6,
-              color: COLORS.accent,
-              textTransform: 'uppercase',
-              opacity: interpolate(frame, [0, 18], [0, 1], { extrapolateRight: 'clamp' }),
-            }}
-          >
-            Enough talk
-          </div>
-          <SlowType
-            text="See it in action."
-            delay={14}
-            cps={9}
-            size={100}
-            font={FONTS.serif}
-            letterSpacing={-2.4}
-            align="center"
-          />
-          <div
-            style={{
-              fontFamily: FONTS.sans,
-              fontSize: 20,
-              color: COLORS.textMuted,
-              opacity: interpolate(frame, [50, 78], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }),
-            }}
-          >
-            Running on a real vault, captured live.
-          </div>
-        </div>
-      </div>
-    </SoftFade>
-  );
-}
-
-function LiveCapture() {
-  const frame = useCurrentFrame();
-  const beats = beatsData as Array<{ id: string; label: string; startMs: number; endMs: number }>;
-  return (
-    <AbsoluteFill>
-      <OffthreadVideo
-        src={staticFile('captures/live-demo.webm')}
-        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-        muted
-      />
-      {/* Per-beat label overlay */}
-      {beats.map((b) => {
-        const fromF = Math.round((b.startMs / 1000) * FPS);
-        const endF = Math.round((b.endMs / 1000) * FPS);
-        const dur = Math.max(1, endF - fromF);
-        const localFrame = frame - fromF;
-        if (localFrame < 0 || localFrame > dur) return null;
-        return <BeatLabel key={b.id} id={b.id} dur={dur} localFrame={localFrame} />;
-      })}
-      {/* Top-right watermark */}
-      <div
-        style={{
-          position: 'absolute',
-          top: 36,
-          right: 80,
-          fontFamily: FONTS.mono,
-          fontSize: 14,
-          letterSpacing: 3,
-          color: COLORS.textSubtle,
-          textTransform: 'uppercase',
-          textShadow: '0 1px 4px rgba(0,0,0,0.6)',
-        }}
-      >
-        SideNotes · v0.3.0
-      </div>
-    </AbsoluteFill>
-  );
-}
-
-const BEAT_COPY: Record<string, { eyebrow: string; headline: string; tone?: string }> = {
-  hero: { eyebrow: 'Your vault', headline: 'Plain markdown on your Mac.' },
-  today: { eyebrow: '12-day streak', headline: 'Yesterday rolls into today.', tone: 'link' },
-  typing: { eyebrow: 'Live counts', headline: 'Words and tasks tick as you type.', tone: 'tag' },
-  grouping: { eyebrow: 'Sidebar magic', headline: 'Year / Month grouping. Disk stays flat.' },
-  todo: { eyebrow: 'Todo notes', headline: 'Progress chrome on every checklist.', tone: 'accent' },
-  palette: { eyebrow: '⌘K', headline: 'Jump anywhere.' },
-  graph: { eyebrow: 'Graph view', headline: 'Watch your notes connect.', tone: 'link' },
-  outro: { eyebrow: 'v0.3.0', headline: 'Everything in one box.', tone: 'accent' },
-};
-
-function BeatLabel({ id, dur, localFrame }: { id: string; dur: number; localFrame: number }) {
-  const meta = BEAT_COPY[id] ?? { eyebrow: id, headline: id };
-  const fadeIn = interpolate(localFrame, [0, 14], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
-  const fadeOut = interpolate(localFrame, [dur - 14, dur], [1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
-  const y = interpolate(localFrame, [0, 20], [22, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
-  const opacity = Math.min(fadeIn, fadeOut);
-  const toneColor =
-    meta.tone === 'tag' ? COLORS.tag : meta.tone === 'link' ? COLORS.link : COLORS.accent;
-  return (
-    <AbsoluteFill style={{ pointerEvents: 'none' }}>
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          background: `linear-gradient(to top, ${COLORS.bg}cc 0%, transparent 38%, transparent 62%, ${COLORS.bg}66 100%)`,
-          opacity,
-        }}
-      />
-      <div
-        style={{
-          position: 'absolute',
-          left: 80,
-          bottom: 80,
-          maxWidth: 1100,
-          opacity,
-          transform: `translateY(${y}px)`,
-        }}
-      >
-        <div
-          style={{
-            fontFamily: FONTS.mono,
-            fontSize: 15,
-            letterSpacing: 4,
-            color: toneColor,
-            textTransform: 'uppercase',
-            marginBottom: 14,
-          }}
-        >
-          {meta.eyebrow}
-        </div>
-        <div
-          style={{
-            fontFamily: FONTS.serif,
-            fontSize: 60,
-            fontWeight: 600,
-            letterSpacing: -1.5,
-            lineHeight: 1.05,
-            color: COLORS.text,
-            textShadow: '0 2px 18px rgba(0,0,0,0.55)',
-          }}
-        >
-          {meta.headline}
-        </div>
-      </div>
-    </AbsoluteFill>
-  );
-}
+// (Live capture + pre-roll + per-beat labels were removed when the live segment
+// was dropped from the composition. The Playwright capture rig still exists if
+// you want to wire footage back in.)
 
 function RecapMontage() {
   // Each beat is a literal Before / After pair so the value reads in 2 seconds.
@@ -1128,11 +970,250 @@ function ThemeAfter() {
   );
 }
 
+// ---- Changelog TL;DR --------------------------------------------------------
+// Four cuts so nothing has to squeeze into one frame. Each page reuses the
+// changelog copy from the website / WhatsNew modal verbatim.
+
+const CL_HEADER_F = F(2.8);
+const CL_NEW_F = F(3.8);
+const CL_FIXED_F = F(4.6);
+const CL_REMOVED_F = F(2.8);
+
+const CHANGELOG_NEW = [
+  'Mermaid diagrams — flowcharts, sequence, gantt and more render live in ```mermaid blocks',
+  'Image + PDF viewer — click any attachment to open it in a tab (PDFs use Chromium\'s built-in viewer)',
+  'Todo notes — /todos/ files get a dedicated header with progress, task counts, Add task',
+  'Daily notes auto-group by Year / Month in the sidebar — purely visual, files stay flat on disk',
+  'Markdown variants — .markdown, .mdx, .mdown, .mkd, .mkdn, .mdwn all index and open',
+  'Carbon · dark is the new default theme on fresh installs',
+];
+
+const CHANGELOG_FIXED = [
+  'External edits no longer get silently overwritten — editor reloads on change, preserves unsaved work on conflict',
+  'Rename, new note, new folder, new canvas and link dialogs no longer crash (window.prompt is disabled in Electron)',
+  'Native confirm() / alert() swapped for themed in-app dialogs and a non-blocking toast',
+  'Right-click rename preserves the original extension instead of forcing .md (canvas/mdx/markdown work)',
+  'Tab strip updates after rename; stale tabs pointing at deleted files close themselves',
+  'Task checkbox color follows the active theme accent (was a hardcoded blue)',
+  'Daily-note + todo task counts no longer stuck at 0 on file load',
+  'vault:// resolver finds attachments at common publish-site paths (blog/<slug>/foo.png → blogs/images/<slug>/foo.png)',
+  'Custom-styled checkboxes replace the heavy native OS chrome inside task lists',
+];
+
+const CHANGELOG_REMOVED = [
+  'Placeholder "Add weather / Add meetings / Add reading" chips on daily notes — replaced with live Words / Tasks / Streak counters',
+];
+
+function ChangelogScroll() {
+  let offset = 0;
+  const next = (f: number) => {
+    const from = offset;
+    offset += f;
+    return from;
+  };
+  return (
+    <div style={{ position: 'relative', width: '100%', height: '100%', background: COLORS.bg }}>
+      <HaloBackdrop />
+      <Sequence from={next(CL_HEADER_F)} durationInFrames={CL_HEADER_F} name="cl-header">
+        <ChangelogHeader duration={CL_HEADER_F} />
+      </Sequence>
+      <Sequence from={next(CL_NEW_F)} durationInFrames={CL_NEW_F} name="cl-new">
+        <ChangelogPage
+          label="New"
+          tone={COLORS.tag}
+          items={CHANGELOG_NEW}
+          duration={CL_NEW_F}
+        />
+      </Sequence>
+      <Sequence from={next(CL_FIXED_F)} durationInFrames={CL_FIXED_F} name="cl-fixed">
+        <ChangelogPage
+          label="Fixed"
+          tone={COLORS.link}
+          items={CHANGELOG_FIXED}
+          duration={CL_FIXED_F}
+        />
+      </Sequence>
+      <Sequence from={next(CL_REMOVED_F)} durationInFrames={CL_REMOVED_F} name="cl-removed">
+        <ChangelogPage
+          label="Removed"
+          tone={COLORS.textMuted}
+          items={CHANGELOG_REMOVED}
+          duration={CL_REMOVED_F}
+        />
+      </Sequence>
+    </div>
+  );
+}
+
+function ChangelogHeader({ duration }: { duration: number }) {
+  const frame = useCurrentFrame();
+  const inOp = interpolate(frame, [0, 14], [0, 1], { extrapolateRight: 'clamp' });
+  const outOp = interpolate(frame, [duration - 14, duration], [1, 0], { extrapolateLeft: 'clamp' });
+  const opacity = Math.min(inOp, outOp);
+  return (
+    <AbsoluteFill style={{ opacity, padding: '120px 160px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+      {/* Version row */}
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 18, marginBottom: 22 }}>
+        <span style={{ fontFamily: FONTS.serif, fontSize: 72, fontWeight: 600, letterSpacing: -2, color: COLORS.text }}>
+          v0.3.0
+        </span>
+        <span style={{ fontFamily: FONTS.mono, fontSize: 18, color: COLORS.textMuted, letterSpacing: 2 }}>
+          May 2026
+        </span>
+        <span
+          style={{
+            padding: '4px 12px',
+            borderRadius: 999,
+            background: COLORS.accent,
+            color: COLORS.bg,
+            fontFamily: FONTS.mono,
+            fontSize: 12,
+            letterSpacing: 2,
+            textTransform: 'uppercase',
+            fontWeight: 600,
+          }}
+        >
+          Latest
+        </span>
+      </div>
+      {/* Highlight */}
+      <div
+        style={{
+          fontFamily: FONTS.serif,
+          fontStyle: 'italic',
+          fontSize: 32,
+          lineHeight: 1.35,
+          color: COLORS.textMuted,
+          maxWidth: 1400,
+          opacity: interpolate(frame, [16, 36], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }),
+        }}
+      >
+        Mermaid diagrams, image + PDF viewer, todo notes with progress, virtual Year /
+        Month grouping for daily notes, and a hard fix for an external-edit data-loss
+        path.
+      </div>
+      <div
+        style={{
+          marginTop: 28,
+          fontFamily: FONTS.mono,
+          fontSize: 13,
+          letterSpacing: 5,
+          color: COLORS.accent,
+          textTransform: 'uppercase',
+          opacity: interpolate(frame, [40, 60], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }),
+        }}
+      >
+        ─── TL;DR ───
+      </div>
+    </AbsoluteFill>
+  );
+}
+
+function ChangelogPage({
+  label,
+  tone,
+  items,
+  duration,
+}: {
+  label: string;
+  tone: string;
+  items: string[];
+  duration: number;
+}) {
+  const frame = useCurrentFrame();
+  const inOp = interpolate(frame, [0, 12], [0, 1], { extrapolateRight: 'clamp' });
+  const outOp = interpolate(frame, [duration - 14, duration], [1, 0], { extrapolateLeft: 'clamp' });
+  const opacity = Math.min(inOp, outOp);
+  // Per-item stagger so the list reveals like a typed list.
+  const perItem = Math.max(6, Math.min(14, Math.floor((duration - 30) / Math.max(items.length, 1))));
+  // Auto-fit type size: longer lists shrink slightly so 9 items still read.
+  const itemFontSize = items.length >= 8 ? 19 : items.length >= 5 ? 22 : 26;
+  const lineHeight = items.length >= 8 ? 1.45 : 1.5;
+  return (
+    <AbsoluteFill style={{ opacity, padding: '90px 140px', display: 'flex', flexDirection: 'column' }}>
+      {/* Section label, big */}
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, marginBottom: 26 }}>
+        <span
+          style={{
+            fontFamily: FONTS.mono,
+            fontSize: 13,
+            letterSpacing: 5,
+            color: tone,
+            textTransform: 'uppercase',
+          }}
+        >
+          v0.3.0
+        </span>
+        <span style={{ fontFamily: FONTS.serif, fontSize: 56, fontWeight: 600, color: COLORS.text, letterSpacing: -1.5 }}>
+          {label}
+        </span>
+        <span
+          style={{
+            fontFamily: FONTS.mono,
+            fontSize: 14,
+            color: COLORS.textMuted,
+            fontVariantNumeric: 'tabular-nums',
+          }}
+        >
+          ({items.length})
+        </span>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: items.length >= 8 ? 10 : 14, flex: 1 }}>
+        {items.map((text, i) => {
+          const start = 14 + i * perItem;
+          const itemOp = interpolate(frame, [start, start + 10], [0, 1], {
+            extrapolateLeft: 'clamp',
+            extrapolateRight: 'clamp',
+          });
+          const itemX = interpolate(frame, [start, start + 14], [-6, 0], {
+            extrapolateLeft: 'clamp',
+            extrapolateRight: 'clamp',
+          });
+          return (
+            <div
+              key={i}
+              style={{
+                opacity: itemOp,
+                transform: `translateX(${itemX}px)`,
+                display: 'flex',
+                gap: 14,
+                alignItems: 'flex-start',
+              }}
+            >
+              <span
+                style={{
+                  width: 6,
+                  height: 6,
+                  background: tone,
+                  borderRadius: 999,
+                  marginTop: itemFontSize * 0.55,
+                  flexShrink: 0,
+                }}
+              />
+              <span
+                style={{
+                  fontFamily: FONTS.serif,
+                  fontSize: itemFontSize,
+                  lineHeight,
+                  color: COLORS.text,
+                  maxWidth: 1500,
+                }}
+              >
+                {text}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </AbsoluteFill>
+  );
+}
+
+// ----------------------------------------------------------------------------
+
 function Outro() {
   const frame = useCurrentFrame();
-  // Each line stages in with its own delay so the end card reads as credits, not a wall.
-  const fadeAt = (start: number, dur = 18) =>
-    interpolate(frame, [start, start + dur], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
   return (
     <SoftFade durationFrames={OUTRO}>
       <div style={{ position: 'relative', width: '100%', height: '100%', background: COLORS.bg }}>
@@ -1146,54 +1227,30 @@ function Outro() {
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: 22,
+              gap: 24,
             }}
           >
-            {/* Brand mark — circle back to the slate's S mark */}
             <div
               style={{
-                width: 64,
-                height: 64,
-                borderRadius: 14,
-                background: COLORS.text,
-                color: COLORS.bg,
-                display: 'grid',
-                placeItems: 'center',
-                fontFamily: FONTS.serif,
-                fontStyle: 'italic',
-                fontWeight: 700,
-                fontSize: 40,
-                opacity: fadeAt(0),
-                boxShadow: '0 18px 50px rgba(196, 177, 255, 0.18)',
+                fontFamily: FONTS.mono,
+                fontSize: 17,
+                letterSpacing: 6,
+                color: COLORS.accent,
+                textTransform: 'uppercase',
+                opacity: interpolate(frame, [0, 18], [0, 1], { extrapolateRight: 'clamp' }),
               }}
             >
-              S
+              Quietly handcrafted
             </div>
-
             <SlowType
               text="sidenotes.me"
-              delay={16}
-              cps={12}
-              size={104}
+              delay={20}
+              cps={11}
+              size={108}
               font={FONTS.serif}
               letterSpacing={-2.5}
               color={COLORS.accentInk}
             />
-
-            <div
-              style={{
-                fontFamily: FONTS.serif,
-                fontStyle: 'italic',
-                fontSize: 22,
-                color: COLORS.textMuted,
-                opacity: fadeAt(70, 24),
-                marginTop: 2,
-              }}
-            >
-              A quiet place for thinking.
-            </div>
-
-            {/* Platforms + privacy pills */}
             <div
               style={{
                 marginTop: 18,
@@ -1201,7 +1258,7 @@ function Outro() {
                 gap: 12,
                 flexWrap: 'wrap',
                 justifyContent: 'center',
-                opacity: fadeAt(100, 28),
+                opacity: interpolate(frame, [80, 120], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }),
               }}
             >
               <OutroPill icon="🔒" label="Privacy first" tone="accent" />
@@ -1209,76 +1266,26 @@ function Outro() {
               <OutroPill icon="◧" label="Windows" />
               <OutroPill icon="🐧" label="Linux" />
             </div>
-
-            {/* Maker byline — K monogram + serif italic name */}
             <div
               style={{
                 marginTop: 14,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 14,
-                padding: '10px 22px 10px 14px',
-                borderRadius: 999,
-                border: `1px solid ${COLORS.border}`,
-                background: COLORS.bgElevated,
-                opacity: fadeAt(150, 28),
+                fontFamily: FONTS.serif,
+                fontSize: 22,
+                color: COLORS.textMuted,
+                opacity: interpolate(frame, [130, 170], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }),
               }}
             >
-              <div
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: '50%',
-                  background: `linear-gradient(135deg, ${COLORS.accent} 0%, ${COLORS.link} 100%)`,
-                  color: COLORS.bg,
-                  display: 'grid',
-                  placeItems: 'center',
-                  fontFamily: FONTS.serif,
-                  fontStyle: 'italic',
-                  fontWeight: 700,
-                  fontSize: 19,
-                  letterSpacing: -1,
-                  boxShadow: `0 6px 20px ${COLORS.accent}40`,
-                }}
-              >
-                K
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <div
-                  style={{
-                    fontFamily: FONTS.mono,
-                    fontSize: 10,
-                    letterSpacing: 2.5,
-                    color: COLORS.textSubtle,
-                    textTransform: 'uppercase',
-                  }}
-                >
-                  Made by
-                </div>
-                <div
-                  style={{
-                    fontFamily: FONTS.serif,
-                    fontSize: 22,
-                    fontWeight: 600,
-                    color: COLORS.text,
-                    letterSpacing: -0.5,
-                  }}
-                >
-                  Koushith
-                </div>
-              </div>
+              Built with care by <span style={{ color: COLORS.text, fontStyle: 'italic' }}>Koushith</span>
             </div>
-
-            {/* Footer eyebrow */}
             <div
               style={{
-                marginTop: 6,
+                marginTop: 4,
                 fontFamily: FONTS.mono,
-                fontSize: 12,
-                letterSpacing: 4,
+                fontSize: 13,
+                letterSpacing: 3,
                 color: COLORS.textSubtle,
                 textTransform: 'uppercase',
-                opacity: fadeAt(195, 28),
+                opacity: interpolate(frame, [180, 220], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }),
               }}
             >
               Your notes never leave your device
@@ -1372,6 +1379,7 @@ export function V030Cinematic() {
       <Sequence from={push(VIEWER)} durationInFrames={VIEWER}><ViewerScene /></Sequence>
       <Sequence from={push(TODOS)} durationInFrames={TODOS}><TodosScene /></Sequence>
       <Sequence from={push(RECAP)} durationInFrames={RECAP}><RecapMontage /></Sequence>
+      <Sequence from={push(CHANGELOG)} durationInFrames={CHANGELOG}><ChangelogScroll /></Sequence>
       <Sequence from={push(OUTRO)} durationInFrames={OUTRO}><Outro /></Sequence>
     </AbsoluteFill>
   );
