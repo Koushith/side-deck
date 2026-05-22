@@ -30,7 +30,7 @@ const MERMAID = F(10);
 const VIEWER = F(13);          // mock photo + PDF + staggered format chips
 const TODOS = F(13);           // animated checklist
 const RECAP = F(20);           // five before/after cards — 4s each so they breathe
-const CHANGELOG = F(22);       // TL;DR — 4 frames; each holds after items reveal so you can read
+const CHANGELOG = F(17);       // TL;DR — 4 frames; tighter read-hold per page
 const OUTRO = F(9);            // privacy / platforms / byline
 
 export function totalFramesCinematic(): number {
@@ -974,12 +974,12 @@ function ThemeAfter() {
 // Four cuts so nothing has to squeeze into one frame. Each page reuses the
 // changelog copy from the website / WhatsNew modal verbatim.
 
-// Per-page budgets. Each = (reveal time) + (generous hold so the eye can read)
-// + (fadeOut). At 30fps the hold is ~3-4s on every page.
-const CL_HEADER_F = F(3.5);
-const CL_NEW_F = F(7);     // 6 items reveal in ~3s, then ~3.5s hold
-const CL_REMOVED_F = F(3.5); // 1 item + long read
-const CL_FIXED_F = F(8);     // 9 items reveal in ~3.5s, then ~4s hold
+// Per-page budgets — tightened pacing. Reveal still staggers comfortably; hold
+// is just long enough to land before the next cut.
+const CL_HEADER_F = F(2.8);
+const CL_NEW_F = F(5);       // 6 items × 10f stagger ≈ 2s reveal + ~2.5s hold
+const CL_FIXED_F = F(6.5);   // 9 items × 10f stagger ≈ 3s reveal + ~3s hold
+const CL_REMOVED_F = F(2.7); // 1 item + ~2.2s hold
 
 const CHANGELOG_NEW = [
   'Mermaid diagrams — flowcharts, sequence, gantt and more render live in ```mermaid blocks',
@@ -1126,9 +1126,9 @@ function ChangelogPage({
   const inOp = interpolate(frame, [0, 14], [0, 1], { extrapolateRight: 'clamp' });
   const outOp = interpolate(frame, [duration - 18, duration], [1, 0], { extrapolateLeft: 'clamp' });
   const opacity = Math.min(inOp, outOp);
-  // Fixed-pace stagger — each item reveals 12 frames after the last regardless of
-  // page duration. The remaining frames become read-time at the end of the page.
-  const perItem = 12;
+  // Fixed-pace stagger — each item reveals 10 frames after the last regardless of
+  // page duration. Remaining frames are read-time at the end of the page.
+  const perItem = 10;
   // Auto-fit type size: longer lists shrink slightly so 9 items still read.
   const itemFontSize = items.length >= 8 ? 19 : items.length >= 5 ? 22 : 26;
   const lineHeight = items.length >= 8 ? 1.45 : 1.5;
