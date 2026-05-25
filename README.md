@@ -140,6 +140,11 @@ Tagged releases (`vX.Y.Z`) trigger `.github/workflows/release.yml`, which builds
 
 `v0.2.0` — works on macOS, Windows, and Linux. The demo vault has rich linked notes for showing off the graph and canvas. PRs welcome.
 
+## Releases
+
+- [Latest release](https://github.com/Koushith/side-deck/releases/latest)
+- [All releases & changelog](https://github.com/Koushith/side-deck/releases)
+
 ## License
 
 MIT.
