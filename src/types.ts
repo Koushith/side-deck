@@ -21,7 +21,48 @@ export interface FileTreeNode {
   defaultOpen?: boolean;
 }
 
-export type ViewMode = 'editor' | 'graph' | 'all';
+export type ViewMode = 'editor' | 'graph' | 'all' | 'git';
+
+export interface GitFileEntry {
+  path: string;
+  index: string;
+  working: string;
+}
+
+export interface GitStatus {
+  branch: string | null;
+  ahead: number;
+  behind: number;
+  tracking: string | null;
+  files: GitFileEntry[];
+  hasRemote: boolean;
+}
+
+export type GitResult<T> = ({ ok: true } & T) | { ok: false; error: string };
+export type GitVoid = { ok: true } | { ok: false; error: string };
+
+export type AIProvider = 'ollama' | 'openai' | 'anthropic' | 'bedrock';
+
+export interface AISettingsView {
+  provider: AIProvider;
+  ollama: { baseUrl: string; model: string };
+  openai: { baseUrl: string; model: string; hasKey: boolean };
+  anthropic: { baseUrl: string; model: string; hasKey: boolean };
+  bedrock: { region: string; model: string; hasCreds: boolean };
+}
+
+export interface AISettingsUpdate {
+  provider?: AIProvider;
+  ollama?: { baseUrl?: string; model?: string };
+  openai?: { baseUrl?: string; model?: string; apiKey?: string | null };
+  anthropic?: { baseUrl?: string; model?: string; apiKey?: string | null };
+  bedrock?: {
+    region?: string;
+    model?: string;
+    accessKeyId?: string | null;
+    secretAccessKey?: string | null;
+  };
+}
 
 // Mirror of electron/preload.ts API surface (kept in sync manually).
 export interface ApiBridge {
@@ -59,6 +100,30 @@ export interface ApiBridge {
     defaultName: string,
     payload: string
   ) => Promise<string | null>;
+  git: {
+    hasRepo: (vaultPath: string) => Promise<GitResult<{ has: boolean }>>;
+    init: (vaultPath: string) => Promise<GitVoid>;
+    status: (vaultPath: string) => Promise<GitResult<{ status: GitStatus }>>;
+    stage: (vaultPath: string, paths: string[]) => Promise<GitVoid>;
+    unstage: (vaultPath: string, paths: string[]) => Promise<GitVoid>;
+    discard: (vaultPath: string, paths: string[]) => Promise<GitVoid>;
+    commit: (vaultPath: string, message: string) => Promise<GitResult<{ commit: string }>>;
+    push: (vaultPath: string) => Promise<GitVoid>;
+    pull: (vaultPath: string) => Promise<GitVoid>;
+  };
+  ai: {
+    getSettings: () => Promise<AISettingsView>;
+    setSettings: (update: AISettingsUpdate) => Promise<AISettingsView>;
+    listOllamaModels: (baseUrl: string) => Promise<string[]>;
+    generate: (
+      id: string,
+      payload: { system: string; user: string }
+    ) => Promise<{ ok: true } | { ok: false; error: string }>;
+    cancel: (id: string) => Promise<boolean>;
+    onChunk: (id: string, handler: (delta: string) => void) => () => void;
+    onDone: (id: string, handler: () => void) => () => void;
+    onError: (id: string, handler: (msg: string) => void) => () => void;
+  };
 }
 
 declare global {

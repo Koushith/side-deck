@@ -1,5 +1,46 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
+export interface GitFileEntry {
+  path: string;
+  index: string;
+  working: string;
+}
+
+export interface GitStatus {
+  branch: string | null;
+  ahead: number;
+  behind: number;
+  tracking: string | null;
+  files: GitFileEntry[];
+  hasRemote: boolean;
+}
+
+type GitResult<T> = ({ ok: true } & T) | { ok: false; error: string };
+type GitVoid = { ok: true } | { ok: false; error: string };
+
+export type AIProvider = 'ollama' | 'openai' | 'anthropic' | 'bedrock';
+
+export interface AISettingsView {
+  provider: AIProvider;
+  ollama: { baseUrl: string; model: string };
+  openai: { baseUrl: string; model: string; hasKey: boolean };
+  anthropic: { baseUrl: string; model: string; hasKey: boolean };
+  bedrock: { region: string; model: string; hasCreds: boolean };
+}
+
+export interface AISettingsUpdate {
+  provider?: AIProvider;
+  ollama?: { baseUrl?: string; model?: string };
+  openai?: { baseUrl?: string; model?: string; apiKey?: string | null };
+  anthropic?: { baseUrl?: string; model?: string; apiKey?: string | null };
+  bedrock?: {
+    region?: string;
+    model?: string;
+    accessKeyId?: string | null;
+    secretAccessKey?: string | null;
+  };
+}
+
 const api = {
   vault: {
     pick: () => ipcRenderer.invoke('vault:pick') as Promise<string | null>,
@@ -43,6 +84,56 @@ const api = {
   },
   exportNote: (kind: 'md' | 'html' | 'pdf', defaultName: string, payload: string) =>
     ipcRenderer.invoke('export:save', kind, defaultName, payload) as Promise<string | null>,
+  git: {
+    hasRepo: (vaultPath: string) =>
+      ipcRenderer.invoke('git:hasRepo', vaultPath) as Promise<GitResult<{ has: boolean }>>,
+    init: (vaultPath: string) =>
+      ipcRenderer.invoke('git:init', vaultPath) as Promise<GitVoid>,
+    status: (vaultPath: string) =>
+      ipcRenderer.invoke('git:status', vaultPath) as Promise<GitResult<{ status: GitStatus }>>,
+    stage: (vaultPath: string, paths: string[]) =>
+      ipcRenderer.invoke('git:stage', vaultPath, paths) as Promise<GitVoid>,
+    unstage: (vaultPath: string, paths: string[]) =>
+      ipcRenderer.invoke('git:unstage', vaultPath, paths) as Promise<GitVoid>,
+    discard: (vaultPath: string, paths: string[]) =>
+      ipcRenderer.invoke('git:discard', vaultPath, paths) as Promise<GitVoid>,
+    commit: (vaultPath: string, message: string) =>
+      ipcRenderer.invoke('git:commit', vaultPath, message) as Promise<GitResult<{ commit: string }>>,
+    push: (vaultPath: string) =>
+      ipcRenderer.invoke('git:push', vaultPath) as Promise<GitVoid>,
+    pull: (vaultPath: string) =>
+      ipcRenderer.invoke('git:pull', vaultPath) as Promise<GitVoid>,
+  },
+  ai: {
+    getSettings: () => ipcRenderer.invoke('ai:settings:get') as Promise<AISettingsView>,
+    setSettings: (update: AISettingsUpdate) =>
+      ipcRenderer.invoke('ai:settings:set', update) as Promise<AISettingsView>,
+    listOllamaModels: (baseUrl: string) =>
+      ipcRenderer.invoke('ai:ollama:models', baseUrl) as Promise<string[]>,
+    generate: (id: string, payload: { system: string; user: string }) =>
+      ipcRenderer.invoke('ai:generate', id, payload) as Promise<
+        { ok: true } | { ok: false; error: string }
+      >,
+    cancel: (id: string) => ipcRenderer.invoke('ai:cancel', id) as Promise<boolean>,
+    onChunk: (id: string, handler: (delta: string) => void) => {
+      const channel = `ai:chunk:${id}`;
+      const listener = (_: unknown, delta: string) => handler(delta);
+      ipcRenderer.on(channel, listener);
+      return () => ipcRenderer.removeListener(channel, listener);
+    },
+    onDone: (id: string, handler: () => void) => {
+      const channel = `ai:done:${id}`;
+      const listener = () => handler();
+      ipcRenderer.on(channel, listener);
+      return () => ipcRenderer.removeListener(channel, listener);
+    },
+    onError: (id: string, handler: (msg: string) => void) => {
+      const channel = `ai:error:${id}`;
+      const listener = (_: unknown, msg: string) => handler(msg);
+      ipcRenderer.on(channel, listener);
+      return () => ipcRenderer.removeListener(channel, listener);
+    },
+  },
 };
 
 contextBridge.exposeInMainWorld('api', api);

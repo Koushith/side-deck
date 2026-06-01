@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronDown, ChevronRight, PanelRightClose, PanelRightOpen } from 'lucide-react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useVault } from '@/stores/vault';
 import { api } from '@/lib/api';
 import { resolveWikilink } from '@/lib/markdown';
@@ -7,11 +7,6 @@ import { basenameNoExt, joinPath } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 
 interface Heading { level: number; text: string }
-
-const COLLAPSED_KEY = 'side.connections.collapsed';
-function readCollapsed() {
-  try { return localStorage.getItem(COLLAPSED_KEY) === '1'; } catch { return false; }
-}
 
 export function ConnectionsPanel() {
   const activeFile = useVault((s) => s.activeFile);
@@ -23,13 +18,6 @@ export function ConnectionsPanel() {
   const filesArr = useMemo(() => [...files.values()], [files]);
   const file = activeFile ? files.get(activeFile) ?? null : null;
   const targetName = (file?.title || file?.name || '').toLowerCase();
-
-  const [collapsed, setCollapsed] = useState(readCollapsed);
-  function toggleCollapsed() {
-    const next = !collapsed;
-    try { localStorage.setItem(COLLAPSED_KEY, next ? '1' : '0'); } catch { /* ignore */ }
-    setCollapsed(next);
-  }
 
   // Outline state
   const [outlineOpen, setOutlineOpen] = useState(true);
@@ -103,36 +91,13 @@ export function ConnectionsPanel() {
   const incomingCount = backlinks.length;
   const outgoingCount = outgoing.length;
 
-  if (collapsed) {
-    return (
-      <aside className="w-9 shrink-0 border-l border-border bg-bg-elevated flex flex-col items-center pt-3 gap-2">
-        <button
-          onClick={toggleCollapsed}
-          title="Expand panel"
-          className="p-1.5 rounded-md text-text-muted hover:text-text hover:bg-bg-hover transition-colors"
-        >
-          <PanelRightOpen size={14} />
-        </button>
-      </aside>
-    );
-  }
-
   return (
-    <aside className="w-[280px] shrink-0 border-l border-border bg-bg-elevated overflow-y-auto">
-      <div className="px-4 pt-4 pb-3 border-b border-border-subtle flex items-start justify-between gap-2">
-        <div>
-          <div className="font-serif text-[14px] font-semibold text-text">Connections</div>
-          <div className="font-mono text-[10.5px] uppercase tracking-[0.08em] text-text-muted mt-0.5">
-            {incomingCount} incoming · {outgoingCount} outgoing
-          </div>
+    <>
+      <div className="px-4 pt-4 pb-3 border-b border-border-subtle">
+        <div className="font-serif text-[14px] font-semibold text-text">Connections</div>
+        <div className="font-mono text-[10.5px] uppercase tracking-[0.08em] text-text-muted mt-0.5">
+          {incomingCount} incoming · {outgoingCount} outgoing
         </div>
-        <button
-          onClick={toggleCollapsed}
-          title="Collapse panel"
-          className="mt-0.5 p-1 rounded-md text-text-muted hover:text-text hover:bg-bg-hover transition-colors shrink-0"
-        >
-          <PanelRightClose size={14} />
-        </button>
       </div>
 
       {/* Outline */}
@@ -247,7 +212,7 @@ export function ConnectionsPanel() {
           </div>
         )}
       </Section>
-    </aside>
+    </>
   );
 }
 

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, shell, session, protocol, net } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, shell, session, protocol, net, safeStorage, Menu, MenuItem } from 'electron';
 import { pathToFileURL } from 'node:url';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -7,6 +7,8 @@ import { existsSync } from 'node:fs';
 import os from 'node:os';
 import chokidar, { FSWatcher } from 'chokidar';
 import pkg from 'electron-updater';
+import { simpleGit, type SimpleGit } from 'simple-git';
+import { generate as aiGenerate, listOllamaModels, type AIProvider } from './ai';
 const { autoUpdater } = pkg;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -34,9 +36,23 @@ let win: BrowserWindow | null = null;
 let watcher: FSWatcher | null = null;
 let currentVault: string | null = null;
 
+interface AISettingsStored {
+  provider: AIProvider;
+  ollama: { baseUrl: string; model: string };
+  openai: { baseUrl: string; model: string; encKey?: string };
+  anthropic: { baseUrl: string; model: string; encKey?: string };
+  bedrock: {
+    region: string;
+    model: string;
+    encAccessKeyId?: string;
+    encSecretAccessKey?: string;
+  };
+}
+
 interface Settings {
   vaultPath?: string;
   recentVaults?: string[];
+  ai?: AISettingsStored;
 }
 
 async function readSettings(): Promise<Settings> {
@@ -77,6 +93,43 @@ function createWindow() {
   win.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
     return { action: 'deny' };
+  });
+
+  // Native spell-check + standard editing context menu. Electron flags misspellings
+  // automatically (you see the red squiggle); we surface the OS dictionary suggestions
+  // via `replaceMisspelling`, plus cut/copy/paste/select-all so right-click is useful
+  // everywhere in the editor.
+  win.webContents.on('context-menu', (_event, params) => {
+    const menu = new Menu();
+    const hasMisspelling = !!params.misspelledWord && params.dictionarySuggestions.length > 0;
+
+    if (hasMisspelling) {
+      for (const suggestion of params.dictionarySuggestions) {
+        menu.append(
+          new MenuItem({
+            label: suggestion,
+            click: () => win?.webContents.replaceMisspelling(suggestion),
+          })
+        );
+      }
+      menu.append(
+        new MenuItem({
+          label: `Add "${params.misspelledWord}" to dictionary`,
+          click: () =>
+            win?.webContents.session.addWordToSpellCheckerDictionary(params.misspelledWord),
+        })
+      );
+      menu.append(new MenuItem({ type: 'separator' }));
+    }
+
+    if (params.isEditable || params.selectionText) {
+      if (params.editFlags.canCut) menu.append(new MenuItem({ role: 'cut' }));
+      if (params.editFlags.canCopy) menu.append(new MenuItem({ role: 'copy' }));
+      if (params.editFlags.canPaste) menu.append(new MenuItem({ role: 'paste' }));
+      if (params.editFlags.canSelectAll) menu.append(new MenuItem({ role: 'selectAll' }));
+    }
+
+    if (menu.items.length > 0) menu.popup({ window: win ?? undefined });
   });
 
   if (VITE_DEV_SERVER_URL) {
@@ -408,6 +461,402 @@ ipcMain.handle('watch:stop', async () => {
     watcher = null;
   }
   return true;
+});
+
+// ---- IPC: Git ----
+// Shell out to the user's installed `git` binary via simple-git. Auth (SSH keys,
+// OS credential helpers) is whatever the user already has configured — we don't
+// reinvent any of it. All handlers return { ok, ... } / { ok: false, error } so
+// IPC never throws across the boundary.
+
+type GitErr = { ok: false; error: string };
+type GitResult<T> = ({ ok: true } & T) | GitErr;
+type GitVoid = { ok: true } | GitErr;
+
+function gitFor(vaultPath: string): SimpleGit {
+  return simpleGit(vaultPath);
+}
+
+function gitErr(e: unknown): GitErr {
+  const msg = e instanceof Error ? e.message : String(e);
+  // Surface to the dev terminal so the underlying git stderr is visible while iterating.
+  console.warn('[git] error:', msg);
+  return { ok: false, error: msg };
+}
+
+export interface GitFileEntry {
+  path: string;          // repo-relative
+  index: string;         // staged status: 'M' | 'A' | 'D' | 'R' | '?' | ' '
+  working: string;       // unstaged status
+}
+
+export interface GitStatus {
+  branch: string | null;
+  ahead: number;
+  behind: number;
+  tracking: string | null;
+  files: GitFileEntry[];
+  hasRemote: boolean;
+}
+
+ipcMain.handle('git:hasRepo', async (_e, vaultPath: string): Promise<GitResult<{ has: boolean }>> => {
+  try {
+    const has = existsSync(path.join(vaultPath, '.git'));
+    return { ok: true, has };
+  } catch (e) {
+    return gitErr(e);
+  }
+});
+
+ipcMain.handle('git:init', async (_e, vaultPath: string): Promise<GitVoid> => {
+  try {
+    await gitFor(vaultPath).init();
+    return { ok: true };
+  } catch (e) {
+    return gitErr(e);
+  }
+});
+
+ipcMain.handle('git:status', async (_e, vaultPath: string): Promise<GitResult<{ status: GitStatus }>> => {
+  try {
+    const git = gitFor(vaultPath);
+    const s = await git.status();
+    const remotes = await git.getRemotes(false);
+    return {
+      ok: true,
+      status: {
+        branch: s.current,
+        ahead: s.ahead,
+        behind: s.behind,
+        tracking: s.tracking,
+        hasRemote: remotes.length > 0,
+        files: s.files.map((f) => ({ path: f.path, index: f.index, working: f.working_dir })),
+      },
+    };
+  } catch (e) {
+    return gitErr(e);
+  }
+});
+
+ipcMain.handle('git:stage', async (_e, vaultPath: string, paths: string[]): Promise<GitVoid> => {
+  try {
+    await gitFor(vaultPath).add(paths);
+    return { ok: true };
+  } catch (e) {
+    return gitErr(e);
+  }
+});
+
+ipcMain.handle('git:unstage', async (_e, vaultPath: string, paths: string[]): Promise<GitVoid> => {
+  try {
+    await gitFor(vaultPath).reset(['--', ...paths]);
+    return { ok: true };
+  } catch (e) {
+    return gitErr(e);
+  }
+});
+
+ipcMain.handle('git:discard', async (_e, vaultPath: string, paths: string[]): Promise<GitVoid> => {
+  try {
+    // `git checkout --` restores tracked files; untracked files are removed separately.
+    const git = gitFor(vaultPath);
+    const s = await git.status();
+    const tracked: string[] = [];
+    const untracked: string[] = [];
+    for (const p of paths) {
+      if (s.not_added.includes(p)) untracked.push(p);
+      else tracked.push(p);
+    }
+    if (tracked.length) await git.checkout(['--', ...tracked]);
+    for (const u of untracked) {
+      const full = path.join(vaultPath, u);
+      try {
+        await fs.unlink(full);
+      } catch {
+        /* ignore missing */
+      }
+    }
+    return { ok: true };
+  } catch (e) {
+    return gitErr(e);
+  }
+});
+
+ipcMain.handle('git:commit', async (_e, vaultPath: string, message: string): Promise<GitResult<{ commit: string }>> => {
+  try {
+    const res = await gitFor(vaultPath).commit(message);
+    return { ok: true, commit: res.commit };
+  } catch (e) {
+    return gitErr(e);
+  }
+});
+
+ipcMain.handle('git:push', async (_e, vaultPath: string): Promise<GitVoid> => {
+  try {
+    await gitFor(vaultPath).push();
+    return { ok: true };
+  } catch (e) {
+    return gitErr(e);
+  }
+});
+
+ipcMain.handle('git:pull', async (_e, vaultPath: string): Promise<GitVoid> => {
+  try {
+    await gitFor(vaultPath).pull();
+    return { ok: true };
+  } catch (e) {
+    return gitErr(e);
+  }
+});
+
+// ---- IPC: AI ----
+// All AI calls run in the main process so API keys never enter the renderer
+// (and so we sidestep the prod CSP `connect-src 'self'`). Streaming is done by
+// pushing 'ai:chunk' events to the renderer keyed by a request id.
+
+const DEFAULT_AI_SETTINGS: AISettingsStored = {
+  provider: 'ollama',
+  ollama: { baseUrl: 'http://localhost:11434', model: '' },
+  openai: { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
+  anthropic: { baseUrl: 'https://api.anthropic.com', model: 'claude-sonnet-4-6' },
+  bedrock: {
+    region: 'us-east-1',
+    model: 'anthropic.claude-3-5-sonnet-20241022-v2:0',
+  },
+};
+
+function encryptKey(plain: string): string | undefined {
+  if (!plain) return undefined;
+  if (!safeStorage.isEncryptionAvailable()) {
+    // Fall back to plain base64 with a marker so we can detect on read. Better than
+    // refusing to save; user systems without keyring (e.g. headless linux) still work.
+    return 'plain:' + Buffer.from(plain, 'utf8').toString('base64');
+  }
+  return 'enc:' + safeStorage.encryptString(plain).toString('base64');
+}
+
+function decryptKey(stored: string | undefined): string {
+  if (!stored) return '';
+  if (stored.startsWith('plain:')) {
+    return Buffer.from(stored.slice(6), 'base64').toString('utf8');
+  }
+  if (stored.startsWith('enc:')) {
+    try {
+      return safeStorage.decryptString(Buffer.from(stored.slice(4), 'base64'));
+    } catch {
+      return '';
+    }
+  }
+  return '';
+}
+
+/** What we send to the renderer — never includes raw keys, just a hasKey flag. */
+interface AISettingsView {
+  provider: AIProvider;
+  ollama: { baseUrl: string; model: string };
+  openai: { baseUrl: string; model: string; hasKey: boolean };
+  anthropic: { baseUrl: string; model: string; hasKey: boolean };
+  bedrock: { region: string; model: string; hasCreds: boolean };
+}
+
+function toView(s: AISettingsStored): AISettingsView {
+  return {
+    provider: s.provider,
+    ollama: { baseUrl: s.ollama.baseUrl, model: s.ollama.model },
+    openai: { baseUrl: s.openai.baseUrl, model: s.openai.model, hasKey: !!s.openai.encKey },
+    anthropic: { baseUrl: s.anthropic.baseUrl, model: s.anthropic.model, hasKey: !!s.anthropic.encKey },
+    bedrock: {
+      region: s.bedrock.region,
+      model: s.bedrock.model,
+      hasCreds: !!(s.bedrock.encAccessKeyId && s.bedrock.encSecretAccessKey),
+    },
+  };
+}
+
+async function readAISettings(): Promise<AISettingsStored> {
+  const s = await readSettings();
+  // Defensive merge so old settings.json files don't crash the app.
+  const ai = s.ai ?? DEFAULT_AI_SETTINGS;
+  return {
+    provider: ai.provider ?? DEFAULT_AI_SETTINGS.provider,
+    ollama: { ...DEFAULT_AI_SETTINGS.ollama, ...ai.ollama },
+    openai: { ...DEFAULT_AI_SETTINGS.openai, ...ai.openai },
+    anthropic: { ...DEFAULT_AI_SETTINGS.anthropic, ...ai.anthropic },
+    bedrock: { ...DEFAULT_AI_SETTINGS.bedrock, ...ai.bedrock },
+  };
+}
+
+ipcMain.handle('ai:settings:get', async (): Promise<AISettingsView> => {
+  const s = await readAISettings();
+  return toView(s);
+});
+
+/** Save AI settings. The renderer sends keys as plaintext (rare event, only when
+ *  the user types one into the settings dialog); we encrypt before persisting. */
+ipcMain.handle(
+  'ai:settings:set',
+  async (
+    _e,
+    update: {
+      provider?: AIProvider;
+      ollama?: { baseUrl?: string; model?: string };
+      openai?: { baseUrl?: string; model?: string; apiKey?: string | null };
+      anthropic?: { baseUrl?: string; model?: string; apiKey?: string | null };
+      bedrock?: {
+        region?: string;
+        model?: string;
+        accessKeyId?: string | null;
+        secretAccessKey?: string | null;
+      };
+    }
+  ): Promise<AISettingsView> => {
+    const settings = await readSettings();
+    const cur = await readAISettings();
+    // Resolve "send field iff present, null means clear, missing means keep" once
+    // per key to keep the next: literal readable.
+    const resolveSecret = (
+      next: string | null | undefined,
+      prev: string | undefined
+    ): string | undefined => {
+      if (next === undefined) return prev;
+      if (next === null) return undefined;
+      return next ? encryptKey(next) : prev;
+    };
+    const nextOut: AISettingsStored = {
+      provider: update.provider ?? cur.provider,
+      ollama: {
+        baseUrl: update.ollama?.baseUrl ?? cur.ollama.baseUrl,
+        model: update.ollama?.model ?? cur.ollama.model,
+      },
+      openai: {
+        baseUrl: update.openai?.baseUrl ?? cur.openai.baseUrl,
+        model: update.openai?.model ?? cur.openai.model,
+        encKey:
+          update.openai && 'apiKey' in update.openai
+            ? resolveSecret(update.openai.apiKey, cur.openai.encKey)
+            : cur.openai.encKey,
+      },
+      anthropic: {
+        baseUrl: update.anthropic?.baseUrl ?? cur.anthropic.baseUrl,
+        model: update.anthropic?.model ?? cur.anthropic.model,
+        encKey:
+          update.anthropic && 'apiKey' in update.anthropic
+            ? resolveSecret(update.anthropic.apiKey, cur.anthropic.encKey)
+            : cur.anthropic.encKey,
+      },
+      bedrock: {
+        region: update.bedrock?.region ?? cur.bedrock.region,
+        model: update.bedrock?.model ?? cur.bedrock.model,
+        encAccessKeyId:
+          update.bedrock && 'accessKeyId' in update.bedrock
+            ? resolveSecret(update.bedrock.accessKeyId, cur.bedrock.encAccessKeyId)
+            : cur.bedrock.encAccessKeyId,
+        encSecretAccessKey:
+          update.bedrock && 'secretAccessKey' in update.bedrock
+            ? resolveSecret(update.bedrock.secretAccessKey, cur.bedrock.encSecretAccessKey)
+            : cur.bedrock.encSecretAccessKey,
+      },
+    };
+    await writeSettings({ ...settings, ai: nextOut });
+    return toView(nextOut);
+  }
+);
+
+ipcMain.handle('ai:ollama:models', async (_e, baseUrl: string): Promise<string[]> => {
+  return listOllamaModels(baseUrl);
+});
+
+// Active streaming requests, keyed by request id, so the renderer can cancel.
+const aiAborters = new Map<string, AbortController>();
+
+ipcMain.handle(
+  'ai:generate',
+  async (
+    e,
+    id: string,
+    payload: { system: string; user: string }
+  ): Promise<{ ok: true } | { ok: false; error: string }> => {
+    const s = await readAISettings();
+    const abort = new AbortController();
+    aiAborters.set(id, abort);
+
+    const sender = e.sender;
+    const send = (channel: string, data: unknown) => {
+      if (!sender.isDestroyed()) sender.send(channel, data);
+    };
+
+    try {
+      let baseUrl = '';
+      let model = '';
+      let apiKey = '';
+      let awsRegion: string | undefined;
+      let awsAccessKeyId: string | undefined;
+      let awsSecretAccessKey: string | undefined;
+
+      if (s.provider === 'ollama') {
+        baseUrl = s.ollama.baseUrl;
+        model = s.ollama.model;
+        if (!model) throw new Error('No Ollama model selected. Open AI settings to pick one.');
+      } else if (s.provider === 'openai') {
+        baseUrl = s.openai.baseUrl;
+        model = s.openai.model;
+        apiKey = decryptKey(s.openai.encKey);
+        if (!apiKey) throw new Error('OpenAI API key not set. Add one in AI settings.');
+      } else if (s.provider === 'anthropic') {
+        baseUrl = s.anthropic.baseUrl;
+        model = s.anthropic.model;
+        apiKey = decryptKey(s.anthropic.encKey);
+        if (!apiKey) throw new Error('Anthropic API key not set. Add one in AI settings.');
+      } else {
+        // bedrock
+        model = s.bedrock.model;
+        awsRegion = s.bedrock.region;
+        awsAccessKeyId = decryptKey(s.bedrock.encAccessKeyId);
+        awsSecretAccessKey = decryptKey(s.bedrock.encSecretAccessKey);
+        if (!awsAccessKeyId || !awsSecretAccessKey) {
+          throw new Error('AWS credentials not set. Add them in AI settings.');
+        }
+      }
+
+      await aiGenerate({
+        provider: s.provider,
+        baseUrl,
+        model,
+        apiKey,
+        awsRegion,
+        awsAccessKeyId,
+        awsSecretAccessKey,
+        system: payload.system,
+        user: payload.user,
+        signal: abort.signal,
+        onChunk: (delta) => send(`ai:chunk:${id}`, delta),
+      });
+      send(`ai:done:${id}`, null);
+      return { ok: true };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      // AbortError is the user-cancelled case — quiet, not a real error.
+      if (abort.signal.aborted) {
+        send(`ai:done:${id}`, null);
+        return { ok: true };
+      }
+      console.warn('[ai] error:', msg);
+      send(`ai:error:${id}`, msg);
+      return { ok: false, error: msg };
+    } finally {
+      aiAborters.delete(id);
+    }
+  }
+);
+
+ipcMain.handle('ai:cancel', async (_e, id: string): Promise<boolean> => {
+  const a = aiAborters.get(id);
+  if (a) {
+    a.abort();
+    aiAborters.delete(id);
+    return true;
+  }
+  return false;
 });
 
 // ---- IPC: Export ----

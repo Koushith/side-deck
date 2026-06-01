@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useVault } from '@/stores/vault';
+import { useGit } from '@/stores/git';
 import { useEditorRef } from '@/stores/editorRef';
 import { useUi } from '@/stores/ui';
 import { useOnboarding } from '@/stores/onboarding';
@@ -15,7 +16,8 @@ import { GraphView } from '@/components/GraphView';
 import { AllNotesView } from '@/components/AllNotesView';
 import { EmptyState } from '@/components/EmptyState';
 import { WelcomeNote } from '@/components/WelcomeNote';
-import { ConnectionsPanel } from '@/components/ConnectionsPanel';
+import { RightPanel } from '@/components/RightPanel';
+import { SourceControlPanel } from '@/components/SourceControlPanel';
 import { CommandPalette } from '@/components/CommandPalette';
 import { Onboarding } from '@/components/Onboarding';
 import { ShortcutsHelp } from '@/components/ShortcutsHelp';
@@ -60,6 +62,12 @@ export default function App() {
   useEffect(() => {
     init();
   }, [init]);
+
+  // Refresh git status whenever the vault changes so the sidebar badge is right
+  // before the user opens the panel.
+  useEffect(() => {
+    if (vaultPath) useGit.getState().refresh();
+  }, [vaultPath]);
 
   // First-run: surface the onboarding tour automatically.
   useEffect(() => {
@@ -157,6 +165,8 @@ export default function App() {
                 <GraphView />
               ) : view === 'all' ? (
                 <AllNotesView />
+              ) : view === 'git' ? (
+                <SourceControlPanel />
               ) : activeFile ? (
                 activeFile.endsWith('.canvas') ? (
                   <CanvasView key={activeFile} rel={activeFile} vaultPath={vaultPath} />
@@ -181,7 +191,7 @@ export default function App() {
               )}
             </div>
           </div>
-          {!inFocus && view === 'editor' && activeFile && !activeFile.endsWith('.canvas') && <ConnectionsPanel />}
+          {!inFocus && view === 'editor' && activeFile && !activeFile.endsWith('.canvas') && <RightPanel />}
         </main>
       </div>
       <CommandPalette

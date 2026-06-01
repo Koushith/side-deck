@@ -11,8 +11,10 @@ import {
   FilePlus,
   FolderPlus,
   LayoutGrid,
+  GitBranch,
 } from 'lucide-react';
 import { useVault } from '@/stores/vault';
+import { useGit } from '@/stores/git';
 import { FileTree } from './FileTree';
 import { TagPanel } from './TagPanel';
 import { cn } from '@/lib/utils';
@@ -38,6 +40,7 @@ export function Sidebar({ onOpenPalette, onOpenVaultSwitcher }: Props) {
   const setSelectedTag = useVault((s) => s.setSelectedTag);
 
   const [tagsOpen, setTagsOpen] = useState(true);
+  const gitChangeCount = useGit((s) => s.files.length);
 
   const rawVaultName = vaultPath?.split(/[\\/]/).pop() ?? 'SideNotes';
   // Brand display: "sidenotes" folder always shows as "SideNotes" (brand title case).
@@ -55,7 +58,10 @@ export function Sidebar({ onOpenPalette, onOpenVaultSwitcher }: Props) {
   const isCanvas = activeFile?.endsWith('.canvas') ?? false;
   const isGraph = view === 'graph';
   const isAll = view === 'all';
-  const activeNav = isGraph
+  const isGit = view === 'git';
+  const activeNav = isGit
+    ? 'git'
+    : isGraph
     ? 'graph'
     : isAll
     ? 'all'
@@ -161,6 +167,16 @@ export function Sidebar({ onOpenPalette, onOpenVaultSwitcher }: Props) {
             setSelectedTag(null);
             setView('editor');
             setPinnedOnly(!pinnedOnly);
+          }}
+        />
+        <NavItem
+          icon={<GitBranch size={14} />}
+          label="Source Control"
+          active={activeNav === 'git'}
+          count={gitChangeCount}
+          onClick={() => {
+            setPinnedOnly(false);
+            setView('git');
           }}
         />
       </nav>
